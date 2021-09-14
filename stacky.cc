@@ -34,12 +34,14 @@ struct Word
 {
 	enum class Kind
 	{
-		Integer,
-		Print,
 		Add,
-		Dup,
-		Swap,
 		Div_Mod,
+		Dup,
+		Equal,
+		Integer,
+		Negate,
+		Print,
+		Swap,
 	};
 
 	std::string_view file;
@@ -94,6 +96,10 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 				word.kind = Word::Kind::Swap;
 			else if (word.sval == "divmod")
 				word.kind = Word::Kind::Div_Mod;
+			else if (word.sval == "!")
+				word.kind = Word::Kind::Negate;
+			else if (word.sval == "=")
+				word.kind = Word::Kind::Equal;
 			else
 				assert(false);
 		}
@@ -158,6 +164,25 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	push rdx\n";
 			asm_file << "	push rax\n";
 			break;
+
+		case Word::Kind::Negate:
+			asm_file << "	;; negate\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	xor rax, rax\n";
+			asm_file << "	test rbx, rbx\n";
+			asm_file << "	sete al\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Equal:
+			asm_file << "	;; equal\n";
+			asm_file << "	xor rax, rax\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	cmp rcx, rbx\n";
+			asm_file << "	sete al\n";
+			asm_file << " push rax\n";
+			break;
 		}
 	}
 	asm_file << Asm_Footer;
@@ -205,6 +230,7 @@ auto main(int argc, char **argv) -> int
 		ss << "nasm -felf64 " << asm_path;
 		system(ss.str().c_str());
 	}
+
 	auto obj_path = target_path;
 	obj_path += ".o";
 	{
