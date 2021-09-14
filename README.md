@@ -35,6 +35,19 @@ Comments starts with `#` and ends at `\n`. Only single-line comments are support
 0 if 20 . end
 ```
 
+### Loops
+
+`while <condition> do <ops> end` if condition is 0 then jump to end, otherwise at the end jump to while.
+
+```
+# Print natural numbers in [0,10]
+
+0 while dup 11 = ! do
+	dup .
+	1 +
+end
+```
+
 ### Supported operations
 
 - `!` - if top = 1 then push 0 else push 1
@@ -52,8 +65,10 @@ Comments starts with `#` and ends at `\n`. Only single-line comments are support
 - `print` - print null terminated string
 - `swap` - swap top with before top stack element
 
+for more documentation currently only source is a source code of compiler.
+
 ## See also
 
-- Tsoding [Porth](shttps://github.com/tsoding/porth)
+- Tsoding [Porth](https://github.com/tsoding/porth)
 - Classic stack based language [Forth](https://en.wikipedia.org/wiki/Forth_(programming_language))
 - Modern stack based functional language [Factor](https://en.wikipedia.org/wiki/Factor_(programming_language))
