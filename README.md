@@ -3,9 +3,9 @@
 **WIP** stack-based compiled programming language with purpose of beeing a learning expirience.
 
 ## Example
-Program printing sum of 3 `111`
 
-```
+```ruby
+# Program printing sum of 3 `111`
 111 dup dup + + .
 ```
 
