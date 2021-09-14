@@ -47,6 +47,7 @@ struct Word
 		Div_Mod,
 		Do,
 		Dup,
+		Else,
 		End,
 		Equal,
 		Heap,
@@ -89,6 +90,7 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "divmod"sv, Word::Kind::Div_Mod },
 	std::tuple { "do"sv, Word::Kind::Do },
 	std::tuple { "dup"sv, Word::Kind::Dup },
+	std::tuple { "else"sv, Word::Kind::Else },
 	std::tuple { "end"sv, Word::Kind::End },
 	std::tuple { "heap"sv, Word::Kind::Heap },
 	std::tuple { "if"sv, Word::Kind::If },
@@ -184,20 +186,27 @@ auto crossreference(std::vector<Word> &words)
 			stack.pop();
 			stack.push(i);
 			break;
+
 		case Word::Kind::While:
 			stack.push(i);
 			break;
+
 		case Word::Kind::If:
 			stack.push(i);
 			break;
-		case Word::Kind::End:
-			if (words.empty()) {
-				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End without matching if or do block!\n";
-				return false;
-			}
 
+		case Word::Kind::Else:
+			// TODO turn into error message
+			assert(words[stack.top()].kind == Word::Kind::If);
+			words[stack.top()].jump = i + 1;
+			stack.pop();
+			stack.push(i);
+			break;
+
+		case Word::Kind::End:
 			switch (words[stack.top()].kind) {
 			case Word::Kind::If:
+			case Word::Kind::Else:
 				words[stack.top()].jump = i;
 				stack.pop();
 				words[i].jump = i + 1;
@@ -332,6 +341,10 @@ divmod_start:
 			asm_file << "	call _stacky_print_cstr\n";
 			break;
 
+		case Word::Kind::Else:
+			asm_file << "	;; else\n";
+			asm_file << "	jmp " Label_Prefix << word.jump << '\n';
+			break;
 
 		case Word::Kind::Do:
 		case Word::Kind::If:

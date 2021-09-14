@@ -1,6 +1,2 @@
-1 if
-	1 .
-	1 if
-		11 .
-	end
-end
+1 if 10 else 11 end .
+0 if 10 else 11 end .
