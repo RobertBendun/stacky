@@ -52,7 +52,9 @@ struct Word
 		Heap,
 		If,
 		Integer,
+		Mod,
 		Negate,
+		Newline,
 		Print,
 		Print_CString,
 		Read8,
@@ -90,6 +92,8 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "end"sv, Word::Kind::End },
 	std::tuple { "heap"sv, Word::Kind::Heap },
 	std::tuple { "if"sv, Word::Kind::If },
+	std::tuple { "mod"sv, Word::Kind::Mod },
+	std::tuple { "nl"sv, Word::Kind::Newline },
 	std::tuple { "peek"sv, Word::Kind::Read8 },
 	std::tuple { "poke"sv, Word::Kind::Write8 },
 	std::tuple { "print"sv, Word::Kind::Print_CString },
@@ -267,14 +271,20 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	push rbx\n";
 			break;
 
+		case Word::Kind::Mod:
+			asm_file << "	;; mod\n";
+			goto divmod_start;
 		case Word::Kind::Div_Mod:
 			asm_file << "	;; divmod\n";
+divmod_start:
 			asm_file << "	xor rdx, rdx\n";
 			asm_file << "	pop rbx\n";
 			asm_file << "	pop rax\n";
 			asm_file << "	div rbx\n";
-			asm_file << "	push rdx\n";
-			asm_file << "	push rax\n";
+			if (word.kind == Word::Kind::Mod || word.kind == Word::Kind::Div_Mod)
+				asm_file << "	push rdx\n";
+			if (word.kind == Word::Kind::Div_Mod)
+				asm_file << "	push rax\n";
 			break;
 
 		case Word::Kind::Negate:
@@ -341,6 +351,11 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 
 		case Word::Kind::While:
 			asm_file << "	;; while\n";
+			break;
+
+		case Word::Kind::Newline:
+			asm_file << "	;; newline\n";
+			asm_file << "	call _stacky_newline\n";
 			break;
 		}
 	}

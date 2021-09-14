@@ -76,6 +76,12 @@ extern "C" {
 		posix::syscall(posix::Exit, exit_code);
 	}
 
+	void _stacky_newline()
+	{
+		char nl = '\n';
+		posix::syscall(posix::Write, posix::Stdout, (size_t)&nl, 1);
+	}
+
 	void _stacky_print_cstr(char const *cstr)
 	{
 		auto p = cstr;

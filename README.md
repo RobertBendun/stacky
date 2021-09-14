@@ -45,6 +45,8 @@ Comments starts with `#` and ends at `\n`. Only single-line comments are support
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element
 - `heap` - push heap address
+- `mod` - pops 2 numbers and gives modulo
+- `nl` - prints newline
 - `peek` - read from memory
 - `poke` - write to memory
 - `print` - print null terminated string

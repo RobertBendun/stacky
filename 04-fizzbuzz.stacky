@@ -1,0 +1,29 @@
+# \0   z   z   i   f
+ 000 122 122 105 102
+
+heap 0 poke
+while dup 0 = ! do
+	heap peek 1 +
+	heap swap poke
+	heap peek heap + swap poke
+end
+
+# \0   z   z   u   b
+ 000 122 122 117 098
+
+heap 5 poke
+while dup 0 = ! do
+	heap peek 1 +
+	heap swap poke
+	heap peek heap + swap poke
+end
+
+1 while dup 100 = ! do
+	heap 1 poke
+	dup	3 mod 0 = if heap 1 + print heap 0 poke end
+	dup 5 mod 0 = if heap 6 + print heap 0 poke end
+
+	heap peek   if dup . end
+	heap peek ! if nl end # waiting for else branch in if
+	1 +
+end
