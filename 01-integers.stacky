@@ -1,1 +1,4 @@
-11 2 8 + = .
+11 # push 11 to stack
+23 # push 23 to stack
++  # add
+.  # print

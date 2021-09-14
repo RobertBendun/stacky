@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <span>
 #include <sstream>
@@ -67,21 +68,39 @@ constexpr auto Words_To_Kinds = std::array {
 
 auto parse(std::string_view const file, std::string_view const path, std::vector<Word> &words)
 {
-	unsigned column = 0, line = 0;
+	unsigned column = 1, line = 1;
 
 	for (unsigned i = 0; i < file.size();) {
 		auto ch = file[i];
-		for (; i < file.size() && std::isspace(ch); ch = file[++i]) {
-			if (ch == '\n') {
-				++line;
-				column = 0;
-			} else {
-				++column;
+
+		for (;;) {
+			bool done_sth = false;
+
+			for (; i < file.size() && std::isspace(ch); ch = file[++i]) {
+				done_sth = true;
+				if (ch == '\n') {
+					++line;
+					column = 1;
+				} else {
+					++column;
+				}
 			}
+
+			if (i < file.size() && ch == '#') {
+				done_sth = true;
+				auto after_comment = std::find(std::cbegin(file) + i, std::cend(file), '\n');
+				i = after_comment - std::cbegin(file) + 1;
+				ch = file[i];
+				column = 1;
+				line++;
+			}
+
+			if (!done_sth)
+				break;
 		}
 
 		if (i == file.size())
-			return;
+			break;
 
 		auto &word = words.emplace_back(path, column, line);
 
@@ -102,14 +121,18 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 			auto found = std::lower_bound(std::cbegin(Words_To_Kinds), std::cend(Words_To_Kinds), word.sval, [](auto const& lhs, auto const& rhs)
 					{ return std::get<0>(lhs) < rhs; });
 
-			assert(found != std::cend(Words_To_Kinds));
-			assert(std::get<0>(*found) == word.sval);
+			if (found == std::cend(Words_To_Kinds) || std::get<0>(*found) != word.sval) {
+				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << ": Word " << std::quoted(word.sval) << " does not exists\n";
+				return false;
+			}
 			word.kind = std::get<1>(*found);
 		}
 
 		i += word.sval.size();
 		column += word.sval.size();
 	}
+
+	return true;
 }
 
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
@@ -203,6 +226,8 @@ auto main(int argc, char **argv) -> int
 	}
 
 	std::vector<Word> words;
+
+	bool compile = true;
 	for (auto const& path : source_files) {
 		std::ifstream file_stream(path);
 
@@ -211,8 +236,11 @@ auto main(int argc, char **argv) -> int
 			return 1;
 		}
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
-		parse(file, path, words);
+		compile &= parse(file, path, words);
 	}
+
+	if (!compile)
+		return 1;
 
 	auto const target_path =
 		(source_files.size() == 1
