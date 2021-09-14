@@ -5,7 +5,7 @@
 ## Example
 Program printing "hello!" to stdout
 
-```
+```ruby
 # write "hello!" to memory
 heap
 	dup 0 + 104 poke # h
