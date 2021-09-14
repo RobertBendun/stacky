@@ -2,8 +2,6 @@
 #include <limits>
 #include <cstddef>
 
-#include "stdlib-symbols.cc"
-
 namespace posix
 {
 	enum : int {
