@@ -45,6 +45,7 @@ struct Word
 	{
 		Add,
 		Div_Mod,
+		Do,
 		Dup,
 		End,
 		Equal,
@@ -56,6 +57,7 @@ struct Word
 		Print_CString,
 		Read8,
 		Swap,
+		While,
 		Write8,
 
 		Last = Write8,
@@ -71,8 +73,9 @@ struct Word
 	uint64_t ival;
 	std::string sval;
 
-	static constexpr unsigned Empty_Ref = -1;
-	unsigned end_ref = Empty_Ref;
+	// for if and while
+	static constexpr unsigned Empty_Jump = -1;
+	unsigned jump = Empty_Jump;
 };
 
 // NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
@@ -82,6 +85,7 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "."sv, Word::Kind::Print },
 	std::tuple { "="sv, Word::Kind::Equal },
 	std::tuple { "divmod"sv, Word::Kind::Div_Mod },
+	std::tuple { "do"sv, Word::Kind::Do },
 	std::tuple { "dup"sv, Word::Kind::Dup },
 	std::tuple { "end"sv, Word::Kind::End },
 	std::tuple { "heap"sv, Word::Kind::Heap },
@@ -90,6 +94,7 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "poke"sv, Word::Kind::Write8 },
 	std::tuple { "print"sv, Word::Kind::Print_CString },
 	std::tuple { "swap"sv, Word::Kind::Swap },
+	std::tuple { "while"sv, Word::Kind::While },
 };
 
 static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
@@ -165,22 +170,43 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 
 auto crossreference(std::vector<Word> &words)
 {
-	std::stack<unsigned> if_locations;
+	std::stack<unsigned> stack;
 
 	for (auto i = 0u; i < words.size(); ++i) {
-		auto const& word = words[i];
+		auto & word = words[i];
 		switch (word.kind) {
-		case Word::Kind::If:
-			if_locations.push(i);
+		case Word::Kind::Do:
+			word.jump = stack.top();
+			stack.pop();
+			stack.push(i);
 			break;
-
+		case Word::Kind::While:
+			stack.push(i);
+			break;
+		case Word::Kind::If:
+			stack.push(i);
+			break;
 		case Word::Kind::End:
 			if (words.empty()) {
-				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End without matching if!\n";
+				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End without matching if or do block!\n";
 				return false;
 			}
-			words[if_locations.top()].end_ref = i;
-			if_locations.pop();
+
+			switch (words[stack.top()].kind) {
+			case Word::Kind::If:
+				words[stack.top()].jump = i;
+				stack.pop();
+				words[i].jump = i + 1;
+				break;
+			case Word::Kind::Do:
+				words[i].jump = words[stack.top()].jump;
+				words[stack.top()].jump = i + 1;
+				break;
+			default:
+				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End only can close do and if blocks now\n";
+				return false;
+			}
+
 			break;
 
 		default:
@@ -296,20 +322,30 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	call _stacky_print_cstr\n";
 			break;
 
+
+		case Word::Kind::Do:
 		case Word::Kind::If:
-			assert(word.end_ref != Word::Empty_Ref); // Call crossreference on words first
-			asm_file << "	;; if\n";
+			assert(word.jump != Word::Empty_Jump); // Call crossreference on words first
+			asm_file << (word.kind == Word::Kind::If ? "	;; if\n" : "	;; do\n");
 			asm_file << "	pop rax\n";
 			asm_file << "	test rax, rax\n";
-			asm_file << "	jz " Label_Prefix << word.end_ref << '\n';
+			asm_file << "	jz " Label_Prefix << word.jump << '\n';
 			break;
 
 		case Word::Kind::End:
 			asm_file << "	;; end\n";
+			assert(word.jump != Word::Empty_Jump); // Call crossreference on words first
+			if (i + 1 != word.jump)
+				asm_file << "	jmp " Label_Prefix << word.jump << '\n';
+			break;
+
+		case Word::Kind::While:
+			asm_file << "	;; while\n";
 			break;
 		}
 	}
-	asm_file << Asm_Footer;
+
+	asm_file << Label_Prefix << words.size() << ":\n" << Asm_Footer;
 
 	return true;
 }
