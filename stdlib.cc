@@ -11,8 +11,9 @@ namespace posix
 
 	enum Syscall : int
 	{
+		Brk   = 12,
+		Exit  = 60,
 		Write = 1,
-		Exit  = 60
 	};
 
 	static inline size_t syscall1(Syscall n, size_t a1)
@@ -73,5 +74,12 @@ extern "C" {
 	void _stacky_exit(int exit_code)
 	{
 		posix::syscall(posix::Exit, exit_code);
+	}
+
+	void _stacky_print_cstr(char const *cstr)
+	{
+		auto p = cstr;
+		for (; *p != '\0'; ++p) {}
+		posix::syscall(posix::Write, posix::Stdout, (size_t)cstr, p - cstr);
 	}
 }

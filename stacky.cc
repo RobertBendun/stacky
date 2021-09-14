@@ -18,6 +18,9 @@ using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
 auto const& Asm_Header = R"asm(BITS 64
+segment .bss
+	heap: resb 640000
+
 segment .text
 )asm"
 Stdlib_Functions
@@ -41,11 +44,19 @@ struct Word
 		Div_Mod,
 		Dup,
 		Equal,
+		Heap,
 		Integer,
 		Negate,
 		Print,
+		Print_CString,
+		Read8,
 		Swap,
+		Write8,
+
+		Last = Write8,
 	};
+
+	static constexpr unsigned Wordless_Kinds = 1;
 
 	std::string_view file;
 	unsigned column;
@@ -56,6 +67,7 @@ struct Word
 	std::string sval;
 };
 
+// NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
 constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "!"sv, Word::Kind::Negate },
 	std::tuple { "+"sv, Word::Kind::Add },
@@ -63,8 +75,14 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "="sv, Word::Kind::Equal },
 	std::tuple { "divmod"sv, Word::Kind::Div_Mod },
 	std::tuple { "dup"sv, Word::Kind::Dup },
+	std::tuple { "heap"sv, Word::Kind::Heap },
+	std::tuple { "peek"sv, Word::Kind::Read8 },
+	std::tuple { "poke"sv, Word::Kind::Write8 },
+	std::tuple { "print"sv, Word::Kind::Print_CString },
 	std::tuple { "swap"sv, Word::Kind::Swap },
 };
+
+static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
 
 auto parse(std::string_view const file, std::string_view const path, std::vector<Word> &words)
 {
@@ -208,6 +226,32 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	cmp rcx, rbx\n";
 			asm_file << "	sete al\n";
 			asm_file << " push rax\n";
+			break;
+
+		case Word::Kind::Heap:
+			asm_file << "	;; heap\n";
+			asm_file << "	push heap\n";
+			break;
+
+		case Word::Kind::Read8:
+			asm_file << "	;; read8\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	xor rbx, rbx\n";
+			asm_file << "	mov bl, [rax]\n";
+			asm_file << "	push rbx\n";
+			break;
+
+		case Word::Kind::Write8:
+			asm_file << "	;; write8\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	mov [rax], bl\n";
+			break;
+
+		case Word::Kind::Print_CString:
+			asm_file << "	;; print cstring\n";
+			asm_file << "	pop rdi\n";
+			asm_file << "	call _stacky_print_cstr\n";
 			break;
 		}
 	}

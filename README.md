@@ -3,10 +3,22 @@
 **WIP** stack-based compiled programming language with purpose of beeing a learning expirience.
 
 ## Example
-Program printing sum of 3 `111`
+Program printing "hello!" to stdout
 
 ```
-111 dup dup + + .
+# write "hello!" to memory
+heap
+	dup 0 + 104 poke # h
+	dup 1 + 101 poke # e
+	dup 2 + 108 poke # l
+	dup 3 + 108 poke # l
+	dup 4 + 111 poke # o
+	dup 5 + 33  poke # !
+	dup 6 + 10  poke # \n
+	dup 7 + 0   poke # \0
+
+# print cstr starting at heap
+heap print
 ```
 
 ## Language reference
@@ -19,6 +31,10 @@ Supported operations:
 - `=` - if top = one before top then push 1 onto stack, else push 0
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element
+- `heap` - push heap address
+- `peek` - read from memory
+- `poke` - write to memory
+- `print` - print null terminated string
 - `swap` - swap top with before top stack element
 
 ## See also
