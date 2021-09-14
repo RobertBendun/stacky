@@ -9,7 +9,7 @@ stdlib-symbols.cc: gen-stdlib-symbols stdlib.cc
 
 .PHONY: run
 run: stacky
-	./stacky 01-integers.stacky
+	./stacky 02-conditions.stacky
 
 .PHONY: clean
 clean:

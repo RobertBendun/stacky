@@ -23,7 +23,20 @@ heap print
 
 ## Language reference
 
-Supported operations:
+###  Comments
+Comments starts with `#` and ends at `\n`. Only single-line comments are supported.
+
+### Conditions
+
+`if` jumps to `end` if 0, otherwise continues execution. For example code below prints 10:
+
+```
+1 if 10 . end
+0 if 20 . end
+```
+
+### Supported operations
+
 - `!` - if top = 1 then push 0 else push 1
 - `+` - add 2 elements and push result
 - `.` - print top to stdout

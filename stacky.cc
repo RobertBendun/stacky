@@ -9,6 +9,7 @@
 #include <iostream>
 #include <span>
 #include <sstream>
+#include <stack>
 #include <tuple>
 #include <vector>
 
@@ -16,6 +17,8 @@
 
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
+
+#define Label_Prefix "_stacky_instr_"
 
 auto const& Asm_Header = R"asm(BITS 64
 segment .bss
@@ -43,8 +46,10 @@ struct Word
 		Add,
 		Div_Mod,
 		Dup,
+		End,
 		Equal,
 		Heap,
+		If,
 		Integer,
 		Negate,
 		Print,
@@ -65,6 +70,9 @@ struct Word
 	Kind kind;
 	uint64_t ival;
 	std::string sval;
+
+	static constexpr unsigned Empty_Ref = -1;
+	unsigned end_ref = Empty_Ref;
 };
 
 // NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
@@ -75,7 +83,9 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "="sv, Word::Kind::Equal },
 	std::tuple { "divmod"sv, Word::Kind::Div_Mod },
 	std::tuple { "dup"sv, Word::Kind::Dup },
+	std::tuple { "end"sv, Word::Kind::End },
 	std::tuple { "heap"sv, Word::Kind::Heap },
+	std::tuple { "if"sv, Word::Kind::If },
 	std::tuple { "peek"sv, Word::Kind::Read8 },
 	std::tuple { "poke"sv, Word::Kind::Write8 },
 	std::tuple { "print"sv, Word::Kind::Print_CString },
@@ -153,6 +163,34 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 	return true;
 }
 
+auto crossreference(std::vector<Word> &words)
+{
+	std::stack<unsigned> if_locations;
+
+	for (auto i = 0u; i < words.size(); ++i) {
+		auto const& word = words[i];
+		switch (word.kind) {
+		case Word::Kind::If:
+			if_locations.push(i);
+			break;
+
+		case Word::Kind::End:
+			if (words.empty()) {
+				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End without matching if!\n";
+				return false;
+			}
+			words[if_locations.top()].end_ref = i;
+			if_locations.pop();
+			break;
+
+		default:
+			;
+		}
+	}
+
+	return true;
+}
+
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 {
 	std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
@@ -163,7 +201,11 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 
 	asm_file << Asm_Header;
 
-	for (auto const& word : words) {
+	unsigned i = 0;
+	for (auto words_it = std::cbegin(words); words_it != std::cend(words); ++words_it, ++i) {
+		auto const& word = *words_it;
+		asm_file << Label_Prefix << i << ":\n";
+
 		switch (word.kind) {
 		case Word::Kind::Integer:
 			asm_file << "	;; push int " << word.sval << '\n';
@@ -253,6 +295,18 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	pop rdi\n";
 			asm_file << "	call _stacky_print_cstr\n";
 			break;
+
+		case Word::Kind::If:
+			assert(word.end_ref != Word::Empty_Ref); // Call crossreference on words first
+			asm_file << "	;; if\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	test rax, rax\n";
+			asm_file << "	jz " Label_Prefix << word.end_ref << '\n';
+			break;
+
+		case Word::Kind::End:
+			asm_file << "	;; end\n";
+			break;
 		}
 	}
 	asm_file << Asm_Footer;
@@ -294,6 +348,9 @@ auto main(int argc, char **argv) -> int
 
 	auto asm_path = target_path;
 	asm_path += ".asm";
+
+	if (!crossreference(words))
+		return 1;
 
 	std::cout << "[INFO] Generating assembly into " << asm_path << '\n';
 	if (!generate_assembly(words, asm_path))

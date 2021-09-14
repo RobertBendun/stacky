@@ -1,4 +1,5 @@
-01-integers
+01-hello
+02-conditions
 *.o
 stacky
 stdlib-symbols.cc
