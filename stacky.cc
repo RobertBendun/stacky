@@ -7,11 +7,13 @@
 #include <fstream>
 #include <iostream>
 #include <span>
-#include <vector>
 #include <sstream>
+#include <tuple>
+#include <vector>
 
 #include "stdlib-symbols.cc"
 
+using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
 auto const& Asm_Header = R"asm(BITS 64
@@ -53,6 +55,16 @@ struct Word
 	std::string sval;
 };
 
+constexpr auto Words_To_Kinds = std::array {
+	std::tuple { "!"sv, Word::Kind::Negate },
+	std::tuple { "+"sv, Word::Kind::Add },
+	std::tuple { "."sv, Word::Kind::Print },
+	std::tuple { "="sv, Word::Kind::Equal },
+	std::tuple { "divmod"sv, Word::Kind::Div_Mod },
+	std::tuple { "dup"sv, Word::Kind::Dup },
+	std::tuple { "swap"sv, Word::Kind::Swap },
+};
+
 auto parse(std::string_view const file, std::string_view const path, std::vector<Word> &words)
 {
 	unsigned column = 0, line = 0;
@@ -86,22 +98,13 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 			auto const first_ws = std::find_if(start, std::cend(file), static_cast<int(*)(int)>(std::isspace));
 			word.sval = { start, first_ws };
 
-			if (word.sval == ".")
-				word.kind = Word::Kind::Print;
-			else if (word.sval == "+")
-				word.kind = Word::Kind::Add;
-			else if (word.sval == "dup")
-				word.kind = Word::Kind::Dup;
-			else if (word.sval == "swap")
-				word.kind = Word::Kind::Swap;
-			else if (word.sval == "divmod")
-				word.kind = Word::Kind::Div_Mod;
-			else if (word.sval == "!")
-				word.kind = Word::Kind::Negate;
-			else if (word.sval == "=")
-				word.kind = Word::Kind::Equal;
-			else
-				assert(false);
+
+			auto found = std::lower_bound(std::cbegin(Words_To_Kinds), std::cend(Words_To_Kinds), word.sval, [](auto const& lhs, auto const& rhs)
+					{ return std::get<0>(lhs) < rhs; });
+
+			assert(found != std::cend(Words_To_Kinds));
+			assert(std::get<0>(*found) == word.sval);
+			word.kind = std::get<1>(*found);
 		}
 
 		i += word.sval.size();
