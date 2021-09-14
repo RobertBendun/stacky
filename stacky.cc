@@ -37,6 +37,7 @@ struct Word
 		Integer,
 		Print,
 		Add,
+		Dup,
 	};
 
 	std::string_view file;
@@ -85,6 +86,8 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 				word.kind = Word::Kind::Print;
 			else if (word.sval == "+")
 				word.kind = Word::Kind::Add;
+			else if (word.sval == "dup")
+				word.kind = Word::Kind::Dup;
 			else
 				assert(false);
 		}
@@ -122,6 +125,13 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	pop rax\n";
 			asm_file << "	pop rbx\n";
 			asm_file << "	add rax, rbx\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Dup:
+			asm_file << "	;; dup\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	push rax\n";
 			asm_file << "	push rax\n";
 			break;
 		}
