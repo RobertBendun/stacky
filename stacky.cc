@@ -39,6 +39,7 @@ struct Word
 		Add,
 		Dup,
 		Swap,
+		Div_Mod,
 	};
 
 	std::string_view file;
@@ -91,6 +92,8 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 				word.kind = Word::Kind::Dup;
 			else if (word.sval == "swap")
 				word.kind = Word::Kind::Swap;
+			else if (word.sval == "divmod")
+				word.kind = Word::Kind::Div_Mod;
 			else
 				assert(false);
 		}
@@ -144,6 +147,16 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	pop rbx\n";
 			asm_file << "	push rax\n";
 			asm_file << "	push rbx\n";
+			break;
+
+		case Word::Kind::Div_Mod:
+			asm_file << "	;; divmod\n";
+			asm_file << "	xor rdx, rdx\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	div rbx\n";
+			asm_file << "	push rdx\n";
+			asm_file << "	push rax\n";
 			break;
 		}
 	}

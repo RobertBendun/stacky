@@ -17,6 +17,7 @@ Supported operations:
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `dup` - duplicate top element
 - `swap` - swap top with before top stack element
+- `divmod` - divides one before top by top and pushes division result and modulo result
 
 ## See also
 
