@@ -16,9 +16,10 @@ Supported operations:
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `dup` - duplicate top element
+- `swap` - swap top with before top stack element
 
 ## See also
 
-- Tsoding [Porth](https://github.com/tsoding/porth)
+- Tsoding [Porth](shttps://github.com/tsoding/porth)
 - Classic stack based language [Forth](https://en.wikipedia.org/wiki/Forth_(programming_language))
 - Modern stack based functional language [Factor](https://en.wikipedia.org/wiki/Factor_(programming_language))

@@ -38,6 +38,7 @@ struct Word
 		Print,
 		Add,
 		Dup,
+		Swap,
 	};
 
 	std::string_view file;
@@ -45,7 +46,7 @@ struct Word
 	unsigned line;
 
 	Kind kind;
-	int64_t ival;
+	uint64_t ival;
 	std::string sval;
 };
 
@@ -88,6 +89,8 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 				word.kind = Word::Kind::Add;
 			else if (word.sval == "dup")
 				word.kind = Word::Kind::Dup;
+			else if (word.sval == "swap")
+				word.kind = Word::Kind::Swap;
 			else
 				assert(false);
 		}
@@ -133,6 +136,14 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 			asm_file << "	pop rax\n";
 			asm_file << "	push rax\n";
 			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Swap:
+			asm_file << "	;; swap\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	push rax\n";
+			asm_file << "	push rbx\n";
 			break;
 		}
 	}
