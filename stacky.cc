@@ -563,11 +563,9 @@ auto main(int argc, char **argv) -> int
 	if (!compile)
 		return 1;
 
-	auto const target_path =
-		(source_files.size() == 1
-			? fs::path(source_files[0])
-			: fs::absolute(fs::path("."))
-		).stem();
+	auto src_path = fs::path(source_files[0]);
+	auto target_path = src_path.parent_path();
+	target_path /= src_path.stem();
 
 	auto asm_path = target_path;
 	asm_path += ".asm";
