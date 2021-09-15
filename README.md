@@ -24,7 +24,7 @@ Comments starts with `#` and ends at `\n`. Only single-line comments are support
 
 ### Conditions
 
-`if` jumps to `end` if 0, otherwise continues execution. For example code below prints 10:
+`if` jumps to `end` or `else` if 0, otherwise continues execution and on `else` jumps to `end`. For example code below prints 10:
 
 ```
 1 if 10 . end
