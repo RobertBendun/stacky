@@ -12,6 +12,7 @@
 #include <stack>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "stdlib-symbols.cc"
@@ -282,6 +283,9 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
 {
+	std::unordered_set<std::string> undefined_words;
+	bool compilation_failed = false;
+
 	std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 	if (!asm_file) {
 		std::cerr << "[ERROR] Cannot create ASM file " << asm_path << '\n';
@@ -289,6 +293,16 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 	}
 
 	asm_header(asm_file, definitions);
+
+	auto const word_has_been_defined = [&](auto &word){
+		if (!definitions.contains(word.sval) && !undefined_words.contains(word.sval)) {
+			compilation_failed = true;
+			std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << ": Word " << std::quoted(word.sval) << " has not been defined.\n";
+			undefined_words.insert(word.sval);
+			return false;
+		}
+		return true;
+	};
 
 	unsigned i = 0;
 	for (auto words_it = std::cbegin(words); words_it != std::cend(words); ++words_it, ++i) {
@@ -300,7 +314,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			break;
 
 		case Word::Kind::Identifier:
-			assert(definitions.contains(word.sval));
+			word_has_been_defined(word);
 			break;
 
 		case Word::Kind::Integer:
@@ -373,7 +387,7 @@ divmod_start:
 			break;
 
 		case Word::Kind::Push_Symbol:
-			assert(definitions.contains(word.sval));
+			word_has_been_defined(word);
 			asm_file << "	;; push symbol\n";
 			asm_file << "	push " Symbol_Prefix << word.ival << '\n';
 			break;
@@ -433,7 +447,7 @@ divmod_start:
 
 	asm_file << Label_Prefix << words.size() << ":\n" << Asm_Footer;
 
-	return true;
+	return !compilation_failed;
 }
 
 auto main(int argc, char **argv) -> int
