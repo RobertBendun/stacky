@@ -60,6 +60,7 @@ struct Word
 		String,
 		Subtract,
 		Swap,
+		Two_Dup,
 		While,
 		Write8,
 
@@ -94,6 +95,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "+"sv,             Word::Kind::Add },
 	std::tuple { "-"sv,             Word::Kind::Subtract },
 	std::tuple { "."sv,             Word::Kind::Print },
+	std::tuple { "2dup"sv,          Word::Kind::Two_Dup },
 	std::tuple { "="sv,             Word::Kind::Equal },
 	std::tuple { "define-bytes"sv,  Word::Kind::Define_Bytes },
 	std::tuple { "div"sv,           Word::Kind::Div },
@@ -159,15 +161,6 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 				error(word, "Missing terminating \" character");
 
 			word.sval = { std::cbegin(file) + i, str_end + 1 };
-		} else if (ch >= '0' && ch <= '9') {
-			word.kind = Word::Kind::Integer;
-
-			auto p = file.data() + i;
-			auto [ptr, ec] = std::from_chars(p, file.data() + file.size(), word.ival);
-			assert(ec == std::errc{});
-			assert_msg(ptr != file.data() + file.size() ? *ptr != '.' : true, "Floating point parsing is not implemented yet");
-
-			word.sval = { p, ptr };
 		} else {
 			auto const start = std::cbegin(file) + i;
 			auto const first_ws = std::find_if(start, std::cend(file), static_cast<int(*)(int)>(std::isspace));
@@ -179,6 +172,16 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 			word.kind = found != std::cend(Words_To_Kinds) && std::get<0>(*found) == word.sval
 					? std::get<1>(*found)
 					: Word::Kind::Identifier;
+
+			if (found != std::cend(Words_To_Kinds) && std::get<0>(*found) == word.sval) {
+				word.kind = std::get<1>(*found);
+			} else if (word.sval[0] >= '0' && word.sval[0] <= '9') {
+				auto [ptr, ec] = std::from_chars(word.sval.data(), word.sval.data() + word.sval.size(), word.ival);
+				if (ptr == word.sval.data() + word.sval.size())
+					word.kind = Word::Kind::Integer;
+				else
+					assert_msg(ptr != file.data() + file.size() ? *ptr != '.' : true, "Floating point parsing is not implemented yet");
+			}
 		}
 
 		i += word.sval.size();
@@ -299,7 +302,6 @@ auto crossreference(std::vector<Word> &words)
 				error(word, "End can only close do and if blocks");
 				return false;
 			}
-
 			break;
 
 		default:
@@ -421,6 +423,16 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	pop rax\n";
 			asm_file << "	push rax\n";
 			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Two_Dup:
+			asm_file << "	;; 2dup\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rax\n";
+			for (int i = 0; i < 2; ++i) {
+				asm_file << "	push rax\n";
+				asm_file << "	push rbx\n";
+			}
 			break;
 
 		case Word::Kind::Swap:
