@@ -3,23 +3,17 @@
 **WIP** stack-based compiled programming language with purpose of beeing a learning expirience.
 
 ## Example
-Program printing "hello!" to stdout
+Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```ruby
-# write "hello!" to memory
-8 hello declare-bytes
+6 hello define-bytes
 
-hello
-	dup 0 + 104 poke # h
-	dup 1 + 101 poke # e
-	dup 2 + 108 poke # l
-	dup 3 + 108 poke # l
-	dup 4 + 111 poke # o
-	dup 5 + 33  poke # !
-	dup 6 + 10  poke # \n
-	dup 7 + 0   poke # \0
+0 while dup 5 = ! do
+	dup dup "hello" + peek 32 -
+	swap hello + swap poke
+	1 +
+end
 
-# print null terminated string starting at hello
 hello print
 ```
 
@@ -55,6 +49,7 @@ end
 - `!` - if top = 1 then push 0 else push 1
 - `"<string>"` - push address of the null terminated string
 - `+` - add 2 elements and push result
+- `-` - subtracts top from one before top and pushes to stack
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0

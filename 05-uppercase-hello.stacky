@@ -1,0 +1,9 @@
+6 hello define-bytes
+
+0 while dup 5 = ! do
+	dup dup "hello" + peek 32 -
+	swap hello + swap poke
+	1 +
+end
+
+hello print

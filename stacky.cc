@@ -53,6 +53,7 @@ struct Word
 		Push_Symbol,
 		Read8,
 		String,
+		Subtract,
 		Swap,
 		While,
 		Write8,
@@ -79,6 +80,7 @@ struct Word
 constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "!"sv,             Word::Kind::Negate },
 	std::tuple { "+"sv,             Word::Kind::Add },
+	std::tuple { "-"sv,             Word::Kind::Subtract },
 	std::tuple { "."sv,             Word::Kind::Print },
 	std::tuple { "="sv,             Word::Kind::Equal },
 	std::tuple { "define-bytes"sv,  Word::Kind::Define_Bytes },
@@ -376,6 +378,14 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	pop rax\n";
 			asm_file << "	pop rbx\n";
 			asm_file << "	add rax, rbx\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Subtract:
+			asm_file << "	;; subtract\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	sub rax, rbx\n";
 			asm_file << "	push rax\n";
 			break;
 

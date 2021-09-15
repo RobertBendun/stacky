@@ -2,6 +2,7 @@
 02-conditions
 03-loops
 04-fizzbuzz
+05-uppercase-hello
 *.o
 stacky
 stdlib-symbols.cc
