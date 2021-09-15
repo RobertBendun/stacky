@@ -1,6 +1,6 @@
 # stacky
 
-**WIP** stack-based compiled programming language with purpose of beeing a learning expirience.
+**WIP** stack-based compiled programming language with purpose of beeing a learning expirience. **Currently Linux-only**
 
 ## Example
 Program printing "HELLO" to stdout, that was transformed from "hello"
@@ -48,12 +48,14 @@ end
 
 - `!` - if top = 1 then push 0 else push 1
 - `"<string>"` - push address of the null terminated string
+- `*` - multiply 2 elements and push result
 - `+` - add 2 elements and push result
 - `-` - subtracts top from one before top and pushes to stack
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0
 - `declare-bytes` - static array declaration
+- `div` - divide one before top by top and pushes division result
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element
 - `mod` - pops 2 numbers and gives modulo
@@ -62,6 +64,7 @@ end
 - `poke` - write to memory
 - `print` - print null terminated string
 - `swap` - swap top with before top stack element
+- `syscall<n>` - where n >= 0 and n <= 6, e.g. syscall exit(123) `123 60 syscall3`
 
 for more documentation currently only source is a source code of compiler.
 

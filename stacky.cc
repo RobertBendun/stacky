@@ -60,6 +60,13 @@ struct Word
 		String,
 		Subtract,
 		Swap,
+		Syscall0,
+		Syscall1,
+		Syscall2,
+		Syscall3,
+		Syscall4,
+		Syscall5,
+		Syscall6,
 		Two_Dup,
 		While,
 		Write8,
@@ -111,6 +118,13 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "poke"sv,          Word::Kind::Write8 },
 	std::tuple { "print"sv,         Word::Kind::Print_CString },
 	std::tuple { "swap"sv,          Word::Kind::Swap },
+	std::tuple { "syscall0"sv,      Word::Kind::Syscall0 },
+	std::tuple { "syscall1"sv,      Word::Kind::Syscall1 },
+	std::tuple { "syscall2"sv,      Word::Kind::Syscall2 },
+	std::tuple { "syscall3"sv,      Word::Kind::Syscall3 },
+	std::tuple { "syscall4"sv,      Word::Kind::Syscall4 },
+	std::tuple { "syscall5"sv,      Word::Kind::Syscall5 },
+	std::tuple { "syscall6"sv,      Word::Kind::Syscall6 },
 	std::tuple { "while"sv,         Word::Kind::While }
 );
 
@@ -542,6 +556,27 @@ divmod_start:
 			asm_file << "	;; newline\n";
 			asm_file << "	call _stacky_newline\n";
 			break;
+
+		case Word::Kind::Syscall0:
+		case Word::Kind::Syscall1:
+		case Word::Kind::Syscall2:
+		case Word::Kind::Syscall3:
+		case Word::Kind::Syscall4:
+		case Word::Kind::Syscall5:
+		case Word::Kind::Syscall6:
+		{
+			// TODO make sure that all are in sequence, one after other
+			static_assert(Word::Kind::Syscall6 > Word::Kind::Syscall0);
+			unsigned const syscall_count = unsigned(word.kind) - unsigned(Word::Kind::Syscall0);
+			static char const* regs[] = { "rax", "rdi", "rsi", "rdx", "r10", "r8", "r9" };
+
+			asm_file << "	;; syscall" << syscall_count << '\n';
+			for (unsigned i = 0; i <= syscall_count; ++i)
+				asm_file << "	pop " << regs[i] << '\n';
+			asm_file << "	syscall\n";
+			asm_file << "	push rax\n";
+		} break;
+
 		}
 	}
 
