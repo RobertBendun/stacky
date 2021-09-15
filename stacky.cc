@@ -1,12 +1,13 @@
 #include <array>
-#include <cassert>
 #include <cctype>
 #include <charconv>
+#include <concepts>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <source_location>
 #include <span>
 #include <sstream>
 #include <stack>
@@ -15,7 +16,14 @@
 #include <unordered_set>
 #include <vector>
 
+#include "errors.cc"
 #include "stdlib-symbols.cc"
+
+template<typename ...T>
+constexpr auto count_args(T const& ...args) noexcept -> unsigned
+{
+	return (((void)args, 1) + ...);
+}
 
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
@@ -36,6 +44,7 @@ struct Word
 	{
 		Add,
 		Define_Bytes,
+		Div,
 		Div_Mod,
 		Do,
 		Dup,
@@ -46,6 +55,7 @@ struct Word
 		If,
 		Integer,
 		Mod,
+		Mul,
 		Negate,
 		Newline,
 		Print,
@@ -61,7 +71,14 @@ struct Word
 		Last = Write8,
 	};
 
-	static constexpr unsigned Wordless_Kinds = 4;
+	static constexpr unsigned Data_Announcing_Kinds = count_args(Kind::Define_Bytes, Kind::String);
+
+	static constexpr unsigned Wordless_Kinds = count_args(
+		Kind::Identifier,
+		Kind::Integer,
+		Kind::Push_Symbol,
+		Kind::String
+	);
 
 	std::string_view file;
 	unsigned column;
@@ -79,11 +96,13 @@ struct Word
 // NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
 constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "!"sv,             Word::Kind::Negate },
+	std::tuple { "*"sv,             Word::Kind::Mul },
 	std::tuple { "+"sv,             Word::Kind::Add },
 	std::tuple { "-"sv,             Word::Kind::Subtract },
 	std::tuple { "."sv,             Word::Kind::Print },
 	std::tuple { "="sv,             Word::Kind::Equal },
 	std::tuple { "define-bytes"sv,  Word::Kind::Define_Bytes },
+	std::tuple { "div"sv,           Word::Kind::Div },
 	std::tuple { "divmod"sv,        Word::Kind::Div_Mod },
 	std::tuple { "do"sv,            Word::Kind::Do },
 	std::tuple { "dup"sv,           Word::Kind::Dup },
@@ -142,15 +161,18 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 		if (ch == '"') {
 			word.kind = Word::Kind::String;
 			auto str_end = std::find(std::cbegin(file) + i + 1, std::cend(file), '"');
-			assert(str_end != std::cend(file));
+			if (str_end == std::cend(file))
+				error(word, "Missing terminating \" character");
+
 			word.sval = { std::cbegin(file) + i, str_end + 1 };
 		} else if (ch >= '0' && ch <= '9') {
 			word.kind = Word::Kind::Integer;
 
 			auto p = file.data() + i;
 			auto [ptr, ec] = std::from_chars(p, file.data() + file.size(), word.ival);
-			// if *ptr == '.' then we should try parsing a floating point
 			assert(ec == std::errc{});
+			assert_msg(ptr != file.data() + file.size() ? *ptr != '.' : true, "Floating point parsing is not implemented yet");
+
 			word.sval = { p, ptr };
 		} else {
 			auto const start = std::cbegin(file) + i;
@@ -213,9 +235,10 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 		} break;
 
 		case Word::Kind::Define_Bytes: {
-			assert(i >= 2);
-			assert(words[i-1].kind == Word::Kind::Identifier);
-			assert(words[i-2].kind == Word::Kind::Integer);
+			ensure(i >= 2, word,                                    "define-bytes requires two compile time arguments!");
+			ensure(words[i-1].kind == Word::Kind::Identifier, word, "define-bytes should be preceded by an identifier, e.g. `10 foo define-bytes`");
+			ensure(words[i-2].kind == Word::Kind::Integer, word,    "define-bytes should be precedded by an integer, e.g. `10 foo define-bytes`");
+
 			auto &def = user_defined_words[words[i-1].sval] = {
 				word,
 				Definition::Kind::Array,
@@ -260,7 +283,7 @@ auto crossreference(std::vector<Word> &words)
 
 		case Word::Kind::Else:
 			// TODO turn into error message
-			assert(words[stack.top()].kind == Word::Kind::If);
+			ensure(words[stack.top()].kind == Word::Kind::If, word, "`else` without previous `if`");
 			words[stack.top()].jump = i + 1;
 			stack.pop();
 			stack.push(i);
@@ -279,7 +302,7 @@ auto crossreference(std::vector<Word> &words)
 				words[stack.top()].jump = i + 1;
 				break;
 			default:
-				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << " End only can close do and if blocks now\n";
+				error(word, "End can only close do and if blocks");
 				return false;
 			}
 
@@ -293,13 +316,17 @@ auto crossreference(std::vector<Word> &words)
 	return true;
 }
 
+
+
 auto asm_header(std::ostream &asm_file, Definitions &definitions)
 {
 	asm_file << "BITS 64\n";
-	asm_file << "segment .bss\n";
 
 	auto const label = [&](auto &v) -> auto& { return asm_file << '\t' << Symbol_Prefix << v.id << ": "; };
 
+	static_assert(Word::Data_Announcing_Kinds == 2, "Data anoucment not implemented for some words");
+
+	asm_file << "segment .bss\n";
 	for (auto const& [key, value] : definitions) {
 		switch (value.word.kind) {
 		case Word::Kind::Define_Bytes: label(value) << "resb " << value.byte_size << '\n'; break;
@@ -325,20 +352,18 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
 {
 	std::unordered_set<std::string> undefined_words;
-	bool compilation_failed = false;
 
 	std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 	if (!asm_file) {
-		std::cerr << "[ERROR] Cannot create ASM file " << asm_path << '\n';
-		return false;
+		error("Cannot generate ASM file ", asm_path);
+		return;
 	}
 
 	asm_header(asm_file, definitions);
 
 	auto const word_has_been_defined = [&](auto &word){
 		if (!definitions.contains(word.sval) && !undefined_words.contains(word.sval)) {
-			compilation_failed = true;
-			std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << ": Word " << std::quoted(word.sval) << " has not been defined.\n";
+			error(word, "Word", std::quoted(word.sval), " has not been defined.");
 			undefined_words.insert(word.sval);
 			return false;
 		}
@@ -352,7 +377,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 
 		switch (word.kind) {
 		case Word::Kind::String:
-			assert(false);
+			assert_msg(false, "define_words should eliminate all string words");
 			break;
 
 		case Word::Kind::Define_Bytes:
@@ -389,6 +414,14 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	push rax\n";
 			break;
 
+		case Word::Kind::Mul:
+			asm_file << "	;; mul\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	imul rax, rbx\n";
+			asm_file << "	push rax\n";
+			break;
+
 		case Word::Kind::Dup:
 			asm_file << "	;; dup\n";
 			asm_file << "	pop rax\n";
@@ -404,6 +437,9 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	push rbx\n";
 			break;
 
+		case Word::Kind::Div:
+			asm_file << "	;; div\n";
+			goto divmod_start;
 		case Word::Kind::Mod:
 			asm_file << "	;; mod\n";
 			goto divmod_start;
@@ -416,7 +452,7 @@ divmod_start:
 			asm_file << "	div rbx\n";
 			if (word.kind == Word::Kind::Mod || word.kind == Word::Kind::Div_Mod)
 				asm_file << "	push rdx\n";
-			if (word.kind == Word::Kind::Div_Mod)
+			if (word.kind == Word::Kind::Div || word.kind == Word::Kind::Div_Mod)
 				asm_file << "	push rax\n";
 			break;
 
@@ -499,8 +535,6 @@ divmod_start:
 	}
 
 	asm_file << Label_Prefix << words.size() << ":\n" << Asm_Footer;
-
-	return !compilation_failed;
 }
 
 auto main(int argc, char **argv) -> int
@@ -519,12 +553,11 @@ auto main(int argc, char **argv) -> int
 		std::ifstream file_stream(path);
 
 		if (!file_stream) {
-			std::cerr << "[ERROR] File \"" << path << "\" cannot be opened!\n";
+			error("Source file ", std::quoted(path), " cannot be opened");
 			return 1;
 		}
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
 		compile &= parse(file, path, words);
-		std::cout << "[INFO] Parsed " << path << std::endl;
 	}
 
 	if (!compile)
@@ -542,16 +575,14 @@ auto main(int argc, char **argv) -> int
 	Definitions definitions;
 	define_words(words, definitions);
 
-	std::cout << "[INFO] Crossreferencing" << std::endl;
 	if (!crossreference(words))
 		return 1;
 
-	std::cout << "[INFO] Generating assembly into " << asm_path << std::endl;
-	if (!generate_assembly(words, asm_path, definitions))
+	generate_assembly(words, asm_path, definitions);
+	if (Compilation_Failed)
 		return 1;
 
 	{
-		std::cout << "[INFO] Assembling " << asm_path << '\n';
 		std::stringstream ss;
 		ss << "nasm -felf64 " << asm_path;
 		system(ss.str().c_str());
@@ -560,7 +591,6 @@ auto main(int argc, char **argv) -> int
 	auto obj_path = target_path;
 	obj_path += ".o";
 	{
-		std::cout << "[INFO] Linking...\n";
 		std::stringstream ss;
 		ss << "ld -o " << target_path << " " << obj_path << " stdlib.o";
 		system(ss.str().c_str());

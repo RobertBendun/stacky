@@ -13,4 +13,4 @@ run: stacky
 
 .PHONY: clean
 clean:
-	rm -f stacky 01-hello 02-conditions 03-loops 04-fizzbuzz *.asm *.o stdlib-symbols.cc
+	rm -f stacky 01-hello 02-conditions 03-loops 04-fizzbuzz 05-uppercase-hello *.asm *.o stdlib-symbols.cc
