@@ -7,7 +7,9 @@ Program printing "hello!" to stdout
 
 ```ruby
 # write "hello!" to memory
-heap
+8 hello declare-bytes
+
+hello
 	dup 0 + 104 poke # h
 	dup 1 + 101 poke # e
 	dup 2 + 108 poke # l
@@ -17,8 +19,8 @@ heap
 	dup 6 + 10  poke # \n
 	dup 7 + 0   poke # \0
 
-# print cstr starting at heap
-heap print
+# print null terminated string starting at hello
+hello print
 ```
 
 ## Language reference
@@ -55,9 +57,9 @@ end
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0
+- `declare-bytes` - static array declaration
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element
-- `heap` - push heap address
 - `mod` - pops 2 numbers and gives modulo
 - `nl` - prints newline
 - `peek` - read from memory

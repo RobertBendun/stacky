@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stack>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "stdlib-symbols.cc"
@@ -19,18 +20,7 @@ using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
 #define Label_Prefix "_stacky_instr_"
-
-auto const& Asm_Header = R"asm(BITS 64
-segment .bss
-	heap: resb 640000
-
-segment .text
-)asm"
-Stdlib_Functions
-R"asm(
-global _start
-_start:
-)asm";
+#define Symbol_Prefix "_stacky_symbol_"
 
 auto const& Asm_Footer = R"asm(
 	;; exit syscall
@@ -44,13 +34,14 @@ struct Word
 	enum class Kind
 	{
 		Add,
+		Define_Bytes,
 		Div_Mod,
 		Do,
 		Dup,
 		Else,
 		End,
 		Equal,
-		Heap,
+		Identifier,
 		If,
 		Integer,
 		Mod,
@@ -58,6 +49,7 @@ struct Word
 		Newline,
 		Print,
 		Print_CString,
+		Push_Symbol,
 		Read8,
 		Swap,
 		While,
@@ -66,7 +58,7 @@ struct Word
 		Last = Write8,
 	};
 
-	static constexpr unsigned Wordless_Kinds = 1;
+	static constexpr unsigned Wordless_Kinds = 3;
 
 	std::string_view file;
 	unsigned column;
@@ -83,24 +75,24 @@ struct Word
 
 // NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
 constexpr auto Words_To_Kinds = std::array {
-	std::tuple { "!"sv,       Word::Kind::Negate },
-	std::tuple { "+"sv,       Word::Kind::Add },
-	std::tuple { "."sv,       Word::Kind::Print },
-	std::tuple { "="sv,       Word::Kind::Equal },
-	std::tuple { "divmod"sv,  Word::Kind::Div_Mod },
-	std::tuple { "do"sv,      Word::Kind::Do },
-	std::tuple { "dup"sv,     Word::Kind::Dup },
-	std::tuple { "else"sv,    Word::Kind::Else },
-	std::tuple { "end"sv,     Word::Kind::End },
-	std::tuple { "heap"sv,    Word::Kind::Heap },
-	std::tuple { "if"sv,      Word::Kind::If },
-	std::tuple { "mod"sv,     Word::Kind::Mod },
-	std::tuple { "nl"sv,      Word::Kind::Newline },
-	std::tuple { "peek"sv,    Word::Kind::Read8 },
-	std::tuple { "poke"sv,    Word::Kind::Write8 },
-	std::tuple { "print"sv,   Word::Kind::Print_CString },
-	std::tuple { "swap"sv,    Word::Kind::Swap },
-	std::tuple { "while"sv,   Word::Kind::While },
+	std::tuple { "!"sv,             Word::Kind::Negate },
+	std::tuple { "+"sv,             Word::Kind::Add },
+	std::tuple { "."sv,             Word::Kind::Print },
+	std::tuple { "="sv,             Word::Kind::Equal },
+	std::tuple { "define-bytes"sv,  Word::Kind::Define_Bytes },
+	std::tuple { "divmod"sv,        Word::Kind::Div_Mod },
+	std::tuple { "do"sv,            Word::Kind::Do },
+	std::tuple { "dup"sv,           Word::Kind::Dup },
+	std::tuple { "else"sv,          Word::Kind::Else },
+	std::tuple { "end"sv,           Word::Kind::End },
+	std::tuple { "if"sv,            Word::Kind::If },
+	std::tuple { "mod"sv,           Word::Kind::Mod },
+	std::tuple { "nl"sv,            Word::Kind::Newline },
+	std::tuple { "peek"sv,          Word::Kind::Read8 },
+	std::tuple { "poke"sv,          Word::Kind::Write8 },
+	std::tuple { "print"sv,         Word::Kind::Print_CString },
+	std::tuple { "swap"sv,          Word::Kind::Swap },
+	std::tuple { "while"sv,         Word::Kind::While },
 };
 
 static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
@@ -156,15 +148,12 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 			auto const first_ws = std::find_if(start, std::cend(file), static_cast<int(*)(int)>(std::isspace));
 			word.sval = { start, first_ws };
 
-
 			auto found = std::lower_bound(std::cbegin(Words_To_Kinds), std::cend(Words_To_Kinds), word.sval, [](auto const& lhs, auto const& rhs)
 					{ return std::get<0>(lhs) < rhs; });
 
-			if (found == std::cend(Words_To_Kinds) || std::get<0>(*found) != word.sval) {
-				std::cerr << "[ERROR] " << word.file << ':' << word.line << ':' << word.column << ": Word " << std::quoted(word.sval) << " does not exists\n";
-				return false;
-			}
-			word.kind = std::get<1>(*found);
+			word.kind = found != std::cend(Words_To_Kinds) && std::get<0>(*found) == word.sval
+					? std::get<1>(*found)
+					: Word::Kind::Identifier;
 		}
 
 		i += word.sval.size();
@@ -172,6 +161,53 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 	}
 
 	return true;
+}
+
+struct Definition
+{
+	enum class Kind
+	{
+		Array
+	};
+
+	Word word;
+	Kind kind;
+	uint64_t byte_size;
+
+	static inline unsigned definitions_count = 0;
+	unsigned id;
+};
+
+using Definitions = std::unordered_map<std::string, Definition>;
+
+auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
+{
+	for (unsigned i = 0; i < words.size(); ++i) {
+		auto &word = words[i];
+		switch (word.kind) {
+		case Word::Kind::Define_Bytes: {
+			assert(i >= 2);
+			assert(words[i-1].kind == Word::Kind::Identifier);
+			assert(words[i-2].kind == Word::Kind::Integer);
+			auto &def = user_defined_words[words[i-1].sval] = {
+				word,
+				Definition::Kind::Array,
+				words[i-2].ival,
+				Definition::definitions_count++
+			};
+
+			for (unsigned j = 0; j < words.size(); ++j) {
+				auto &other = words[j];
+				if (other.kind == Word::Kind::Identifier && other.sval == words[i-1].sval && j != i-1) {
+					other.kind = Word::Kind::Push_Symbol;
+					other.ival = def.id;
+				}
+			}
+			} break;
+		default:
+			;
+		}
+	}
 }
 
 auto crossreference(std::vector<Word> &words)
@@ -230,7 +266,21 @@ auto crossreference(std::vector<Word> &words)
 	return true;
 }
 
-auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
+auto asm_header(std::ostream &asm_file, Definitions &definitions)
+{
+	asm_file << "BITS 64\n";
+	asm_file << "segment .bss\n";
+
+	for (auto const& [key, value] : definitions) {
+		asm_file << '\t' << Symbol_Prefix << value.id << ": resb " << value.byte_size << '\n';
+	}
+
+	asm_file << "segment .text\n" Stdlib_Functions;
+	asm_file << "global _start\n";
+	asm_file << "_start:\n";
+}
+
+auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
 {
 	std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 	if (!asm_file) {
@@ -238,7 +288,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 		return false;
 	}
 
-	asm_file << Asm_Header;
+	asm_header(asm_file, definitions);
 
 	unsigned i = 0;
 	for (auto words_it = std::cbegin(words); words_it != std::cend(words); ++words_it, ++i) {
@@ -246,6 +296,13 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path)
 		asm_file << Label_Prefix << i << ":\n";
 
 		switch (word.kind) {
+		case Word::Kind::Define_Bytes:
+			break;
+
+		case Word::Kind::Identifier:
+			assert(definitions.contains(word.sval));
+			break;
+
 		case Word::Kind::Integer:
 			asm_file << "	;; push int " << word.sval << '\n';
 			asm_file << "	push " << word.ival << '\n';
@@ -315,9 +372,10 @@ divmod_start:
 			asm_file << " push rax\n";
 			break;
 
-		case Word::Kind::Heap:
-			asm_file << "	;; heap\n";
-			asm_file << "	push heap\n";
+		case Word::Kind::Push_Symbol:
+			assert(definitions.contains(word.sval));
+			asm_file << "	;; push symbol\n";
+			asm_file << "	push " Symbol_Prefix << word.ival << '\n';
 			break;
 
 		case Word::Kind::Read8:
@@ -413,11 +471,14 @@ auto main(int argc, char **argv) -> int
 	auto asm_path = target_path;
 	asm_path += ".asm";
 
+	Definitions definitions;
+	define_words(words, definitions);
+
 	if (!crossreference(words))
 		return 1;
 
 	std::cout << "[INFO] Generating assembly into " << asm_path << '\n';
-	if (!generate_assembly(words, asm_path))
+	if (!generate_assembly(words, asm_path, definitions))
 		return 1;
 
 	{
