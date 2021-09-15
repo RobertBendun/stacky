@@ -6,7 +6,7 @@
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```ruby
-6 hello define-bytes
+5 hello define-bytes
 
 0 while dup 5 = ! do
 	dup dup "hello" + peek 32 -
@@ -14,7 +14,7 @@ Program printing "HELLO" to stdout, that was transformed from "hello"
 	1 +
 end
 
-hello print
+5 hello 1 1 syscall3 # syscall write(1, hello, 5)
 ```
 
 ## Language reference
