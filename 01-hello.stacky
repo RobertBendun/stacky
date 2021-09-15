@@ -1,15 +1,1 @@
-# write "hello!" to memory
-8 hello define-bytes
-
-hello
-	dup 0 + 104 poke # h
-	dup 1 + 101 poke # e
-	dup 2 + 108 poke # l
-	dup 3 + 108 poke # l
-	dup 4 + 111 poke # o
-	dup 5 + 33  poke # !
-	dup 6 + 10  poke # \n
-	dup 7 + 0   poke # \0
-
-# print cstr starting at heap
-hello print
+"hello" print

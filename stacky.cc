@@ -52,6 +52,7 @@ struct Word
 		Print_CString,
 		Push_Symbol,
 		Read8,
+		String,
 		Swap,
 		While,
 		Write8,
@@ -59,7 +60,7 @@ struct Word
 		Last = Write8,
 	};
 
-	static constexpr unsigned Wordless_Kinds = 3;
+	static constexpr unsigned Wordless_Kinds = 4;
 
 	std::string_view file;
 	unsigned column;
@@ -136,7 +137,12 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 
 		auto &word = words.emplace_back(path, column, line);
 
-		if (ch >= '0' && ch <= '9') {
+		if (ch == '"') {
+			word.kind = Word::Kind::String;
+			auto str_end = std::find(std::cbegin(file) + i + 1, std::cend(file), '"');
+			assert(str_end != std::cend(file));
+			word.sval = { std::cbegin(file) + i, str_end + 1 };
+		} else if (ch >= '0' && ch <= '9') {
 			word.kind = Word::Kind::Integer;
 
 			auto p = file.data() + i;
@@ -168,7 +174,8 @@ struct Definition
 {
 	enum class Kind
 	{
-		Array
+		Array,
+		String
 	};
 
 	Word word;
@@ -186,6 +193,23 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 	for (unsigned i = 0; i < words.size(); ++i) {
 		auto &word = words[i];
 		switch (word.kind) {
+		case Word::Kind::String: {
+			auto &def = user_defined_words[word.sval] = {
+				word,
+				Definition::Kind::String,
+				(uint64_t)-1, // TODO calculate size
+				Definition::definitions_count++
+			};
+
+			for (unsigned j = 0; j < words.size(); ++j) {
+				auto &other = words[j];
+				if (other.kind == Word::Kind::String && other.sval == word.sval) {
+					other.kind = Word::Kind::Push_Symbol;
+					other.ival = def.id;
+				}
+			}
+		} break;
+
 		case Word::Kind::Define_Bytes: {
 			assert(i >= 2);
 			assert(words[i-1].kind == Word::Kind::Identifier);
@@ -272,8 +296,23 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	asm_file << "BITS 64\n";
 	asm_file << "segment .bss\n";
 
+	auto const label = [&](auto &v) -> auto& { return asm_file << '\t' << Symbol_Prefix << v.id << ": "; };
+
 	for (auto const& [key, value] : definitions) {
-		asm_file << '\t' << Symbol_Prefix << value.id << ": resb " << value.byte_size << '\n';
+		switch (value.word.kind) {
+		case Word::Kind::Define_Bytes: label(value) << "resb " << value.byte_size << '\n'; break;
+		default:
+			;
+		}
+	}
+
+	asm_file << "segment .data\n";
+	for (auto const& [key, value] : definitions) {
+		switch (value.word.kind) {
+		case Word::Kind::String: label(value) << "db " << value.word.sval << ", 0\n"; break;
+		default:
+			;
+		}
 	}
 
 	asm_file << "segment .text\n" Stdlib_Functions;
@@ -310,6 +349,10 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		asm_file << Label_Prefix << i << ":\n";
 
 		switch (word.kind) {
+		case Word::Kind::String:
+			assert(false);
+			break;
+
 		case Word::Kind::Define_Bytes:
 			break;
 
@@ -471,6 +514,7 @@ auto main(int argc, char **argv) -> int
 		}
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
 		compile &= parse(file, path, words);
+		std::cout << "[INFO] Parsed " << path << std::endl;
 	}
 
 	if (!compile)
@@ -488,10 +532,11 @@ auto main(int argc, char **argv) -> int
 	Definitions definitions;
 	define_words(words, definitions);
 
+	std::cout << "[INFO] Crossreferencing" << std::endl;
 	if (!crossreference(words))
 		return 1;
 
-	std::cout << "[INFO] Generating assembly into " << asm_path << '\n';
+	std::cout << "[INFO] Generating assembly into " << asm_path << std::endl;
 	if (!generate_assembly(words, asm_path, definitions))
 		return 1;
 

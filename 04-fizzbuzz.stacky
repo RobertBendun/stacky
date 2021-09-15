@@ -1,32 +1,12 @@
-# \0   z   z   i   f
- 000 122 122 105 102
-
-7 fizz define-bytes
-while dup 0 = ! do
-	fizz peek 1 +
-	fizz swap poke
-	fizz peek fizz + swap poke
-end
-
-# \0   z   z   u   b
- 000 122 122 117 098
-
-7 buzz define-bytes
-while dup 0 = ! do
-	buzz peek 1 +
-	buzz swap poke
-	buzz peek buzz + swap poke
-end
-
 1 printed define-bytes
 1 while dup 100 = ! do
 	printed 1 poke
 	dup	3 mod 0 = if
-		fizz print
+		"fizz" print
 		printed 0 poke
 	end
 	dup 5 mod 0 = if
-		buzz print
+		"buzz" print
 		printed 0 poke
 	end
 

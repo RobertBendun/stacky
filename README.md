@@ -53,6 +53,7 @@ end
 ### Supported operations
 
 - `!` - if top = 1 then push 0 else push 1
+- `"<string>"` - push address of the null terminated string
 - `+` - add 2 elements and push result
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
