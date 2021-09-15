@@ -18,12 +18,7 @@
 
 #include "errors.cc"
 #include "stdlib-symbols.cc"
-
-template<typename ...T>
-constexpr auto count_args(T const& ...args) noexcept -> unsigned
-{
-	return (((void)args, 1) + ...);
-}
+#include "utilities.cc"
 
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
@@ -93,8 +88,7 @@ struct Word
 	unsigned jump = Empty_Jump;
 };
 
-// NEEEEEEDS TO BE SORTED !!!!!!!!!!!!!1
-constexpr auto Words_To_Kinds = std::array {
+constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "!"sv,             Word::Kind::Negate },
 	std::tuple { "*"sv,             Word::Kind::Mul },
 	std::tuple { "+"sv,             Word::Kind::Add },
@@ -115,8 +109,8 @@ constexpr auto Words_To_Kinds = std::array {
 	std::tuple { "poke"sv,          Word::Kind::Write8 },
 	std::tuple { "print"sv,         Word::Kind::Print_CString },
 	std::tuple { "swap"sv,          Word::Kind::Swap },
-	std::tuple { "while"sv,         Word::Kind::While },
-};
+	std::tuple { "while"sv,         Word::Kind::While }
+);
 
 static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
 
@@ -324,7 +318,7 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 
 	auto const label = [&](auto &v) -> auto& { return asm_file << '\t' << Symbol_Prefix << v.id << ": "; };
 
-	static_assert(Word::Data_Announcing_Kinds == 2, "Data anoucment not implemented for some words");
+	static_assert(Word::Data_Announcing_Kinds == 2, "Data annoucment not implemented for some words");
 
 	asm_file << "segment .bss\n";
 	for (auto const& [key, value] : definitions) {
@@ -476,9 +470,10 @@ divmod_start:
 			break;
 
 		case Word::Kind::Push_Symbol:
-			word_has_been_defined(word);
-			asm_file << "	;; push symbol\n";
-			asm_file << "	push " Symbol_Prefix << word.ival << '\n';
+			if (word_has_been_defined(word)) {
+				asm_file << "	;; push symbol\n";
+				asm_file << "	push " Symbol_Prefix << word.ival << '\n';
+			}
 			break;
 
 		case Word::Kind::Read8:
@@ -503,14 +498,18 @@ divmod_start:
 			break;
 
 		case Word::Kind::Else:
+			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			asm_file << "	;; else\n";
 			asm_file << "	jmp " Label_Prefix << word.jump << '\n';
 			break;
 
 		case Word::Kind::Do:
+			asm_file << "	;; do\n";
+			goto ifdo_start;
 		case Word::Kind::If:
-			assert(word.jump != Word::Empty_Jump); // Call crossreference on words first
-			asm_file << (word.kind == Word::Kind::If ? "	;; if\n" : "	;; do\n");
+			asm_file << "	;; if\n";
+		ifdo_start:
+			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			asm_file << "	pop rax\n";
 			asm_file << "	test rax, rax\n";
 			asm_file << "	jz " Label_Prefix << word.jump << '\n';
@@ -518,7 +517,7 @@ divmod_start:
 
 		case Word::Kind::End:
 			asm_file << "	;; end\n";
-			assert(word.jump != Word::Empty_Jump); // Call crossreference on words first
+			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			if (i + 1 != word.jump)
 				asm_file << "	jmp " Label_Prefix << word.jump << '\n';
 			break;
@@ -534,7 +533,7 @@ divmod_start:
 		}
 	}
 
-	asm_file << Label_Prefix << words.size() << ":\n" << Asm_Footer;
+	asm_file << Label_Prefix << words.size() << ":" << Asm_Footer;
 }
 
 auto main(int argc, char **argv) -> int

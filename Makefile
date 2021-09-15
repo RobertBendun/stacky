@@ -1,4 +1,10 @@
-stacky: stacky.cc stdlib.o stdlib-symbols.cc
+Examples=$(wildcard examples/*.stacky)
+Compiled_Examples=$(basename $(Examples))
+
+.PHONY:
+all: $(Compiled_Examples) stacky
+
+stacky: stacky.cc stdlib-symbols.cc stdlib.o
 	g++ -std=c++20 -Wall -Wextra -Werror=switch $< -o $@
 
 stdlib.o: stdlib.cc
@@ -7,10 +13,9 @@ stdlib.o: stdlib.cc
 stdlib-symbols.cc: gen-stdlib-symbols stdlib.cc
 	 ./gen-stdlib-symbols > stdlib-symbols.cc
 
-.PHONY: run
-run: stacky
-	./stacky 03-loops.stacky
+examples/%: examples/%.stacky stacky stdlib.o
+	./stacky $<
 
 .PHONY: clean
 clean:
-	rm -f stacky 01-hello 02-conditions 03-loops 04-fizzbuzz 05-uppercase-hello *.asm *.o stdlib-symbols.cc
+	rm -f stacky $(Compiled_Examples) examples/*.asm examples/*.o stdlib-symbols.cc
