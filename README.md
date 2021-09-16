@@ -6,15 +6,16 @@
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```ruby
-5 hello define-bytes
+5 hello-count define-constant
+hello-count hello define-bytes
 
-0 while dup 5 = ! do
+0 while dup hello-count = ! do
 	dup dup "hello" + peek 32 -
 	swap hello + swap poke
 	1 +
 end
 
-5 hello 1 1 syscall3 # syscall write(1, hello, 5)
+hello-count hello 1 1 syscall3 # syscall write(1, hello, 5)
 ```
 
 ## Language reference
@@ -54,7 +55,8 @@ end
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0
-- `declare-bytes` - static array declaration
+- `define-bytes` - static array declaration
+- `define-constant` - integer constant declaration
 - `div` - divide one before top by top and pushes division result
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element

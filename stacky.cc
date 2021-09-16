@@ -37,29 +37,54 @@ struct Word
 {
 	enum class Kind
 	{
+		// --- MATH ---
 		Add,
-		Define_Bytes,
 		Div,
 		Div_Mod,
-		Do,
-		Dup,
-		Else,
-		End,
 		Equal,
-		Identifier,
-		If,
-		Integer,
+		Greater,
+		Greater_Eq,
+		Left_Shift,
+		Less,
+		Less_Eq,
 		Mod,
 		Mul,
 		Negate,
-		Newline,
-		Print,
+		Not_Equal,
+		Right_Shift,
+		Subtract,
+
+		// --- STACK ---
+		Dup,
 		Print_CString,
 		Push_Symbol,
-		Read8,
-		String,
-		Subtract,
 		Swap,
+		Two_Dup,
+
+		// --- LITERALS ---
+		Identifier,
+		Integer,
+		String,
+
+		// --- COMPILE TIME DEFINITIONS ---
+		Define_Bytes,
+		Define_Constant,
+
+		// --- CONTROL FLOW ---
+		Do,
+		Else,
+		End,
+		If,
+		While,
+
+		// --- MEMORY ---
+		Read8,
+		Write8,
+		Top,
+
+		// --- STDLIB, OS ---
+		Newline,
+		Print,
 		Syscall0,
 		Syscall1,
 		Syscall2,
@@ -67,11 +92,8 @@ struct Word
 		Syscall4,
 		Syscall5,
 		Syscall6,
-		Two_Dup,
-		While,
-		Write8,
 
-		Last = Write8,
+		Last = Syscall6,
 	};
 
 	static constexpr unsigned Data_Announcing_Kinds = count_args(Kind::Define_Bytes, Kind::String);
@@ -97,35 +119,44 @@ struct Word
 };
 
 constexpr auto Words_To_Kinds = sorted_array_of_tuples(
-	std::tuple { "!"sv,             Word::Kind::Negate },
-	std::tuple { "*"sv,             Word::Kind::Mul },
-	std::tuple { "+"sv,             Word::Kind::Add },
-	std::tuple { "-"sv,             Word::Kind::Subtract },
-	std::tuple { "."sv,             Word::Kind::Print },
-	std::tuple { "2dup"sv,          Word::Kind::Two_Dup },
-	std::tuple { "="sv,             Word::Kind::Equal },
-	std::tuple { "define-bytes"sv,  Word::Kind::Define_Bytes },
-	std::tuple { "div"sv,           Word::Kind::Div },
-	std::tuple { "divmod"sv,        Word::Kind::Div_Mod },
-	std::tuple { "do"sv,            Word::Kind::Do },
-	std::tuple { "dup"sv,           Word::Kind::Dup },
-	std::tuple { "else"sv,          Word::Kind::Else },
-	std::tuple { "end"sv,           Word::Kind::End },
-	std::tuple { "if"sv,            Word::Kind::If },
-	std::tuple { "mod"sv,           Word::Kind::Mod },
-	std::tuple { "nl"sv,            Word::Kind::Newline },
-	std::tuple { "peek"sv,          Word::Kind::Read8 },
-	std::tuple { "poke"sv,          Word::Kind::Write8 },
-	std::tuple { "print"sv,         Word::Kind::Print_CString },
-	std::tuple { "swap"sv,          Word::Kind::Swap },
-	std::tuple { "syscall0"sv,      Word::Kind::Syscall0 },
-	std::tuple { "syscall1"sv,      Word::Kind::Syscall1 },
-	std::tuple { "syscall2"sv,      Word::Kind::Syscall2 },
-	std::tuple { "syscall3"sv,      Word::Kind::Syscall3 },
-	std::tuple { "syscall4"sv,      Word::Kind::Syscall4 },
-	std::tuple { "syscall5"sv,      Word::Kind::Syscall5 },
-	std::tuple { "syscall6"sv,      Word::Kind::Syscall6 },
-	std::tuple { "while"sv,         Word::Kind::While }
+	std::tuple { "!"sv,                Word::Kind::Negate },
+	std::tuple { "!="sv,               Word::Kind::Not_Equal },
+	std::tuple { "*"sv,                Word::Kind::Mul },
+	std::tuple { "+"sv,                Word::Kind::Add },
+	std::tuple { "-"sv,                Word::Kind::Subtract },
+	std::tuple { "."sv,                Word::Kind::Print },
+	std::tuple { "2dup"sv,             Word::Kind::Two_Dup },
+	std::tuple { "<"sv,                Word::Kind::Less },
+	std::tuple { "<<"sv,               Word::Kind::Left_Shift },
+	std::tuple { "<="sv,               Word::Kind::Less_Eq },
+	std::tuple { "="sv,                Word::Kind::Equal },
+	std::tuple { ">"sv,                Word::Kind::Greater },
+	std::tuple { ">="sv,               Word::Kind::Greater_Eq },
+	std::tuple { ">>"sv,               Word::Kind::Right_Shift },
+	std::tuple { "define-bytes"sv,     Word::Kind::Define_Bytes },
+	std::tuple { "define-constant"sv,  Word::Kind::Define_Constant },
+	std::tuple { "div"sv,              Word::Kind::Div },
+	std::tuple { "divmod"sv,           Word::Kind::Div_Mod },
+	std::tuple { "do"sv,               Word::Kind::Do },
+	std::tuple { "dup"sv,              Word::Kind::Dup },
+	std::tuple { "else"sv,             Word::Kind::Else },
+	std::tuple { "end"sv,              Word::Kind::End },
+	std::tuple { "if"sv,               Word::Kind::If },
+	std::tuple { "mod"sv,              Word::Kind::Mod },
+	std::tuple { "nl"sv,               Word::Kind::Newline },
+	std::tuple { "peek"sv,             Word::Kind::Read8 },
+	std::tuple { "poke"sv,             Word::Kind::Write8 },
+	std::tuple { "print"sv,            Word::Kind::Print_CString },
+	std::tuple { "swap"sv,             Word::Kind::Swap },
+	std::tuple { "syscall0"sv,         Word::Kind::Syscall0 },
+	std::tuple { "syscall1"sv,         Word::Kind::Syscall1 },
+	std::tuple { "syscall2"sv,         Word::Kind::Syscall2 },
+	std::tuple { "syscall3"sv,         Word::Kind::Syscall3 },
+	std::tuple { "syscall4"sv,         Word::Kind::Syscall4 },
+	std::tuple { "syscall5"sv,         Word::Kind::Syscall5 },
+	std::tuple { "syscall6"sv,         Word::Kind::Syscall6 },
+	std::tuple { "top"sv,              Word::Kind::Top },
+	std::tuple { "while"sv,            Word::Kind::While }
 );
 
 static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
@@ -210,6 +241,7 @@ struct Definition
 	enum class Kind
 	{
 		Array,
+		Constant,
 		String
 	};
 
@@ -241,6 +273,27 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 				if (other.kind == Word::Kind::String && other.sval == word.sval) {
 					other.kind = Word::Kind::Push_Symbol;
 					other.ival = def.id;
+				}
+			}
+		} break;
+
+		case Word::Kind::Define_Constant: {
+			ensure(i >= 1, word,                                    "define-constant requires compile time integer");
+			ensure(words[i-1].kind == Word::Kind::Identifier, word, "define-bytes should be preceeded by an indentifier, e.g. `42 meaning-of-life define-constant`");
+			ensure(words[i-2].kind == Word::Kind::Integer, word,    "define-constant should be precedded by an integer, e.g. `42 meaning-of-life define-constant`");
+
+			user_defined_words[words[i-1].sval] = {
+				word,
+				Definition::Kind::Constant,
+				0,
+				Definition::definitions_count++
+			};
+
+			for (unsigned j = 0; j < words.size(); ++j) {
+				auto &other = words[j];
+				if (other.kind == Word::Kind::Identifier && other.sval == words[i-1].sval && j != i-1) {
+					other.kind = Word::Kind::Integer;
+					other.ival = words[i-2].ival;
 				}
 			}
 		} break;
@@ -285,9 +338,6 @@ auto crossreference(std::vector<Word> &words)
 			break;
 
 		case Word::Kind::While:
-			stack.push(i);
-			break;
-
 		case Word::Kind::If:
 			stack.push(i);
 			break;
@@ -325,8 +375,6 @@ auto crossreference(std::vector<Word> &words)
 
 	return true;
 }
-
-
 
 auto asm_header(std::ostream &asm_file, Definitions &definitions)
 {
@@ -391,6 +439,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			break;
 
 		case Word::Kind::Define_Bytes:
+		case Word::Kind::Define_Constant:
 			break;
 
 		case Word::Kind::Identifier:
@@ -399,7 +448,8 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 
 		case Word::Kind::Integer:
 			asm_file << "	;; push int " << word.sval << '\n';
-			asm_file << "	push " << word.ival << '\n';
+			asm_file << "	mov rax, " << word.ival << '\n';
+			asm_file << "	push rax\n";
 			break;
 
 		case Word::Kind::Print:
@@ -430,6 +480,27 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	pop rbx\n";
 			asm_file << "	imul rax, rbx\n";
 			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Left_Shift:
+			asm_file << "	;; left shift\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	sal rbx, cl\n";
+			asm_file << "	push rbx\n";
+			break;
+
+		case Word::Kind::Right_Shift:
+			asm_file << "	;; right shift\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	shr rbx, cl\n";
+			asm_file << "	push rbx\n";
+			break;
+
+		case Word::Kind::Top:
+			asm_file << "	;; top\n";
+			asm_file << "	push rsp\n";
 			break;
 
 		case Word::Kind::Dup:
@@ -486,12 +557,25 @@ divmod_start:
 			break;
 
 		case Word::Kind::Equal:
+		case Word::Kind::Not_Equal:
+		case Word::Kind::Greater:
+		case Word::Kind::Greater_Eq:
+		case Word::Kind::Less:
+		case Word::Kind::Less_Eq:
 			asm_file << "	;; equal\n";
 			asm_file << "	xor rax, rax\n";
-			asm_file << "	pop rcx\n";
 			asm_file << "	pop rbx\n";
+			asm_file << "	pop rcx\n";
 			asm_file << "	cmp rcx, rbx\n";
-			asm_file << "	sete al\n";
+			asm_file << "	set" << (
+					word.kind == Word::Kind::Equal      ? "e"  :
+					word.kind == Word::Kind::Greater    ? "a"  :
+					word.kind == Word::Kind::Greater_Eq ? "nb" :
+					word.kind == Word::Kind::Less       ? "b"  :
+					word.kind == Word::Kind::Less_Eq    ? "be" :
+					word.kind == Word::Kind::Not_Equal  ? "ne" :
+						(assert(false), nullptr)
+				) << " al\n";
 			asm_file << " push rax\n";
 			break;
 
