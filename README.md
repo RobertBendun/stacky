@@ -55,6 +55,7 @@ end
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0
+- `and` - boolean and
 - `define-bytes` - static array declaration
 - `define-constant` - integer constant declaration
 - `div` - divide one before top by top and pushes division result
@@ -62,6 +63,7 @@ end
 - `dup` - duplicate top element
 - `mod` - pops 2 numbers and gives modulo
 - `nl` - prints newline
+- `or` - boolean or
 - `peek` - read from memory
 - `poke` - write to memory
 - `print` - print null terminated string

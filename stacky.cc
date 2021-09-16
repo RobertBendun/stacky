@@ -39,6 +39,9 @@ struct Word
 	{
 		// --- MATH ---
 		Add,
+		Boolean_And,
+		Boolean_Negate,
+		Boolean_Or,
 		Div,
 		Div_Mod,
 		Equal,
@@ -49,7 +52,6 @@ struct Word
 		Less_Eq,
 		Mod,
 		Mul,
-		Negate,
 		Not_Equal,
 		Right_Shift,
 		Subtract,
@@ -119,7 +121,7 @@ struct Word
 };
 
 constexpr auto Words_To_Kinds = sorted_array_of_tuples(
-	std::tuple { "!"sv,                Word::Kind::Negate },
+	std::tuple { "!"sv,                Word::Kind::Boolean_Negate },
 	std::tuple { "!="sv,               Word::Kind::Not_Equal },
 	std::tuple { "*"sv,                Word::Kind::Mul },
 	std::tuple { "+"sv,                Word::Kind::Add },
@@ -133,6 +135,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { ">"sv,                Word::Kind::Greater },
 	std::tuple { ">="sv,               Word::Kind::Greater_Eq },
 	std::tuple { ">>"sv,               Word::Kind::Right_Shift },
+	std::tuple { "and"sv,              Word::Kind::Boolean_And },
 	std::tuple { "define-bytes"sv,     Word::Kind::Define_Bytes },
 	std::tuple { "define-constant"sv,  Word::Kind::Define_Constant },
 	std::tuple { "div"sv,              Word::Kind::Div },
@@ -144,6 +147,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "if"sv,               Word::Kind::If },
 	std::tuple { "mod"sv,              Word::Kind::Mod },
 	std::tuple { "nl"sv,               Word::Kind::Newline },
+	std::tuple { "or"sv,               Word::Kind::Boolean_Or },
 	std::tuple { "peek"sv,             Word::Kind::Read8 },
 	std::tuple { "poke"sv,             Word::Kind::Write8 },
 	std::tuple { "print"sv,            Word::Kind::Print_CString },
@@ -547,12 +551,32 @@ divmod_start:
 				asm_file << "	push rax\n";
 			break;
 
-		case Word::Kind::Negate:
+		case Word::Kind::Boolean_Negate:
 			asm_file << "	;; negate\n";
 			asm_file << "	pop rbx\n";
 			asm_file << "	xor rax, rax\n";
 			asm_file << "	test rbx, rbx\n";
 			asm_file << "	sete al\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Boolean_Or:
+			asm_file << "	;; or\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	xor eax, eax\n";
+			asm_file << "	or rbx, rcx\n";
+			asm_file << "	setne al\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Boolean_And:
+			asm_file << "	;; and\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	xor eax, eax\n";
+			asm_file << "	and rbx, rcx\n";
+			asm_file << "	setne al\n";
 			asm_file << "	push rax\n";
 			break;
 
