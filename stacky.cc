@@ -39,6 +39,9 @@ struct Word
 	{
 		// --- MATH ---
 		Add,
+		Bitwise_And,
+		Bitwise_Or,
+		Bitwise_Xor,
 		Boolean_And,
 		Boolean_Negate,
 		Boolean_Or,
@@ -135,8 +138,11 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { ">"sv,         Word::Kind::Greater },
 	std::tuple { ">="sv,        Word::Kind::Greater_Eq },
 	std::tuple { ">>"sv,        Word::Kind::Right_Shift },
-	std::tuple { "and"sv,       Word::Kind::Boolean_And },
 	std::tuple { "[]byte"sv,    Word::Kind::Define_Byte_Array },
+	std::tuple { "and"sv,       Word::Kind::Boolean_And },
+	std::tuple { "bit-and"sv,   Word::Kind::Bitwise_And },
+	std::tuple { "bit-or"sv,    Word::Kind::Bitwise_Or },
+	std::tuple { "bit-xor"sv,   Word::Kind::Bitwise_Xor },
 	std::tuple { "constant"sv,  Word::Kind::Define_Constant },
 	std::tuple { "div"sv,       Word::Kind::Div },
 	std::tuple { "divmod"sv,    Word::Kind::Div_Mod },
@@ -432,7 +438,7 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 
 #define Impl_Div(Op, Name, End) \
 	case Word::Kind::Op: \
-		asm_file << "	;; "Name"\n"; \
+		asm_file << "	;; " Name "\n"; \
 		asm_file << "	xor rdx, rdx\n"; \
 		asm_file << "	pop rbx\n"; \
 		asm_file << "	pop rax\n"; \
@@ -490,9 +496,12 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	call _stacky_print_u64\n";
 			break;
 
-		Impl_Math(Add,         "add",       "add rax,  rbx\n");
-		Impl_Math(Mul,         "multiply",  "imul rax, rbx\n");
-		Impl_Math(Subtract,    "subtract",  "sub rax,  rbx\n");
+		Impl_Math(Add,          "add",          "add rax, rbx\n");
+		Impl_Math(Bitwise_And,  "bitwise and",  "and rax, rbx\n");
+		Impl_Math(Bitwise_Or,   "bitwise or",   "or rax, rbx\n");
+		Impl_Math(Bitwise_Xor,  "bitwise xor",  "xor rax, rbx\n");
+		Impl_Math(Mul,          "multiply",     "imul rax, rbx\n");
+		Impl_Math(Subtract,     "subtract",     "sub rax, rbx\n");
 		Impl_Math(Boolean_Or,  "or",
 				"xor rcx, rcx\n"
 				"or rax, rbx\n"
@@ -563,12 +572,12 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	push rax\n";
 			break;
 
-		Impl_Compare(Word::Kind::Equal,       "equal",             "e");
-		Impl_Compare(Word::Kind::Greater,     "greater",           "a");
-		Impl_Compare(Word::Kind::Greater_Eq,  "greater or equal",  "nb");
-		Impl_Compare(Word::Kind::Less,        "less",              "b");
-		Impl_Compare(Word::Kind::Less_Eq,     "less or equal",     "be");
-		Impl_Compare(Word::Kind::Not_Equal,   "not equal",         "ne");
+		Impl_Compare(Equal,       "equal",             "e");
+		Impl_Compare(Greater,     "greater",           "a");
+		Impl_Compare(Greater_Eq,  "greater or equal",  "nb");
+		Impl_Compare(Less,        "less",              "b");
+		Impl_Compare(Less_Eq,     "less or equal",     "be");
+		Impl_Compare(Not_Equal,   "not equal",         "ne");
 
 		case Word::Kind::Push_Symbol:
 			if (word_has_been_defined(word)) {
