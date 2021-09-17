@@ -69,7 +69,7 @@ struct Word
 		String,
 
 		// --- COMPILE TIME DEFINITIONS ---
-		Define_Bytes,
+		Define_Byte_Array,
 		Define_Constant,
 
 		// --- CONTROL FLOW ---
@@ -98,7 +98,7 @@ struct Word
 		Last = Syscall6,
 	};
 
-	static constexpr unsigned Data_Announcing_Kinds = count_args(Kind::Define_Bytes, Kind::String);
+	static constexpr unsigned Data_Announcing_Kinds = count_args(Kind::Define_Byte_Array, Kind::String);
 
 	static constexpr unsigned Wordless_Kinds = count_args(
 		Kind::Identifier,
@@ -136,7 +136,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { ">="sv,               Word::Kind::Greater_Eq },
 	std::tuple { ">>"sv,               Word::Kind::Right_Shift },
 	std::tuple { "and"sv,              Word::Kind::Boolean_And },
-	std::tuple { "define-bytes"sv,     Word::Kind::Define_Bytes },
+	std::tuple { "[]byte"sv,           Word::Kind::Define_Byte_Array },
 	std::tuple { "define-constant"sv,  Word::Kind::Define_Constant },
 	std::tuple { "div"sv,              Word::Kind::Div },
 	std::tuple { "divmod"sv,           Word::Kind::Div_Mod },
@@ -302,7 +302,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 			}
 		} break;
 
-		case Word::Kind::Define_Bytes: {
+		case Word::Kind::Define_Byte_Array: {
 			ensure(i >= 2, word,                                    "define-bytes requires two compile time arguments!");
 			ensure(words[i-1].kind == Word::Kind::Identifier, word, "define-bytes should be preceded by an identifier, e.g. `10 foo define-bytes`");
 			ensure(words[i-2].kind == Word::Kind::Integer, word,    "define-bytes should be precedded by an integer, e.g. `10 foo define-bytes`");
@@ -391,7 +391,7 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	asm_file << "segment .bss\n";
 	for (auto const& [key, value] : definitions) {
 		switch (value.word.kind) {
-		case Word::Kind::Define_Bytes: label(value) << "resb " << value.byte_size << '\n'; break;
+		case Word::Kind::Define_Byte_Array: label(value) << "resb " << value.byte_size << '\n'; break;
 		default:
 			;
 		}
@@ -442,7 +442,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			assert_msg(false, "define_words should eliminate all string words");
 			break;
 
-		case Word::Kind::Define_Bytes:
+		case Word::Kind::Define_Byte_Array:
 		case Word::Kind::Define_Constant:
 			break;
 

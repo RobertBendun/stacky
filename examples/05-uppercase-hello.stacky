@@ -1,9 +1,10 @@
-6 hello define-bytes
+5 hello-count define-constant
+hello-count hello []byte
 
-0 while dup 5 = ! do
+0 while dup hello-count < do
 	dup dup "hello" + peek 32 -
 	swap hello + swap poke
 	1 +
 end
 
-hello print
+hello-count hello 1 1 syscall3 # syscall write(1, hello, 5)

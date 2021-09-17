@@ -1,4 +1,4 @@
-1 printed define-bytes
+1 printed []byte
 1 while dup 100 = ! do
 	printed 1 poke
 	dup	3 mod 0 = if
