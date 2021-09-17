@@ -15,8 +15,7 @@ enum class Report
 
 static bool Compilation_Failed = false;
 
-template<typename ...T>
-inline void report(Report report, T const& ...message)
+inline void report(Report report, auto const& ...message)
 {
 	auto& out = report == Report::Info ? std::cout : std::cerr;
 	switch (report) {
@@ -34,27 +33,23 @@ inline void report(Report report, T const& ...message)
 		std::exit(1);
 }
 
-template<Locationable Loc, typename ...T>
-inline void report(Report r, Loc const& loc, T const& ...message)
+inline void report(Report r, Locationable auto const& loc, auto const& ...message)
 {
 	report(r, loc.file, ':', loc.line, ':', loc.column, ": ", message...);
 }
 
-template<typename ...T>
-inline void error(T const& ...args)
+inline void error(auto const& ...args)
 {
 	report(Report::Error, args...);
 }
 
-template<typename ...T>
-inline void ensure(bool condition, T const& ...args)
+inline void ensure(bool condition, auto const& ...args)
 {
 	if (condition) return;
 	report(Report::Error, args...);
 }
 
-template<typename ...T>
-inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, T const& ...args)
+inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, auto const& ...args)
 {
 	if (test) return;
 	report(Report::Compiler_Bug, "Assertion ", std::quoted(test_str), " in ",

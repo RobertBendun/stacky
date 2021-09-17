@@ -347,7 +347,6 @@ auto crossreference(std::vector<Word> &words)
 			break;
 
 		case Word::Kind::Else:
-			// TODO turn into error message
 			ensure(words[stack.top()].kind == Word::Kind::If, word, "`else` without previous `if`");
 			words[stack.top()].jump = i + 1;
 			stack.pop();
@@ -653,8 +652,10 @@ divmod_start:
 		case Word::Kind::Syscall5:
 		case Word::Kind::Syscall6:
 		{
-			// TODO make sure that all are in sequence, one after other
-			static_assert(Word::Kind::Syscall6 > Word::Kind::Syscall0);
+			static_assert(linear(1,
+						Word::Kind::Syscall0, Word::Kind::Syscall1, Word::Kind::Syscall2, Word::Kind::Syscall3,
+						Word::Kind::Syscall4, Word::Kind::Syscall5, Word::Kind::Syscall6));
+
 			unsigned const syscall_count = unsigned(word.kind) - unsigned(Word::Kind::Syscall0);
 			static char const* regs[] = { "rax", "rdi", "rsi", "rdx", "r10", "r8", "r9" };
 

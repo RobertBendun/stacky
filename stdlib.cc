@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <limits>
 #include <cstddef>
+#include <concepts>
 
 namespace posix
 {
@@ -30,8 +31,7 @@ namespace posix
 		return ret;
 	}
 
-	template<typename ...T>
-	static inline size_t syscall(Syscall syscall_id, T const& ...args)
+	static inline size_t syscall(Syscall syscall_id, std::convertible_to<size_t> auto const& ...args)
 	{
 		static_assert(sizeof...(args) == 1 || sizeof...(args) == 3);
 		if constexpr (sizeof...(args) == 1) { return syscall1(syscall_id, static_cast<size_t>(args)...); }
