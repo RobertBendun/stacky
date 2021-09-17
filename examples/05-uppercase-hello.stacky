@@ -1,4 +1,4 @@
-5 hello-count define-constant
+5 hello-count constant
 hello-count hello []byte
 
 0 while dup hello-count < do

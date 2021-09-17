@@ -121,46 +121,46 @@ struct Word
 };
 
 constexpr auto Words_To_Kinds = sorted_array_of_tuples(
-	std::tuple { "!"sv,                Word::Kind::Boolean_Negate },
-	std::tuple { "!="sv,               Word::Kind::Not_Equal },
-	std::tuple { "*"sv,                Word::Kind::Mul },
-	std::tuple { "+"sv,                Word::Kind::Add },
-	std::tuple { "-"sv,                Word::Kind::Subtract },
-	std::tuple { "."sv,                Word::Kind::Print },
-	std::tuple { "2dup"sv,             Word::Kind::Two_Dup },
-	std::tuple { "<"sv,                Word::Kind::Less },
-	std::tuple { "<<"sv,               Word::Kind::Left_Shift },
-	std::tuple { "<="sv,               Word::Kind::Less_Eq },
-	std::tuple { "="sv,                Word::Kind::Equal },
-	std::tuple { ">"sv,                Word::Kind::Greater },
-	std::tuple { ">="sv,               Word::Kind::Greater_Eq },
-	std::tuple { ">>"sv,               Word::Kind::Right_Shift },
-	std::tuple { "and"sv,              Word::Kind::Boolean_And },
-	std::tuple { "[]byte"sv,           Word::Kind::Define_Byte_Array },
-	std::tuple { "define-constant"sv,  Word::Kind::Define_Constant },
-	std::tuple { "div"sv,              Word::Kind::Div },
-	std::tuple { "divmod"sv,           Word::Kind::Div_Mod },
-	std::tuple { "do"sv,               Word::Kind::Do },
-	std::tuple { "dup"sv,              Word::Kind::Dup },
-	std::tuple { "else"sv,             Word::Kind::Else },
-	std::tuple { "end"sv,              Word::Kind::End },
-	std::tuple { "if"sv,               Word::Kind::If },
-	std::tuple { "mod"sv,              Word::Kind::Mod },
-	std::tuple { "nl"sv,               Word::Kind::Newline },
-	std::tuple { "or"sv,               Word::Kind::Boolean_Or },
-	std::tuple { "peek"sv,             Word::Kind::Read8 },
-	std::tuple { "poke"sv,             Word::Kind::Write8 },
-	std::tuple { "print"sv,            Word::Kind::Print_CString },
-	std::tuple { "swap"sv,             Word::Kind::Swap },
-	std::tuple { "syscall0"sv,         Word::Kind::Syscall0 },
-	std::tuple { "syscall1"sv,         Word::Kind::Syscall1 },
-	std::tuple { "syscall2"sv,         Word::Kind::Syscall2 },
-	std::tuple { "syscall3"sv,         Word::Kind::Syscall3 },
-	std::tuple { "syscall4"sv,         Word::Kind::Syscall4 },
-	std::tuple { "syscall5"sv,         Word::Kind::Syscall5 },
-	std::tuple { "syscall6"sv,         Word::Kind::Syscall6 },
-	std::tuple { "top"sv,              Word::Kind::Top },
-	std::tuple { "while"sv,            Word::Kind::While }
+	std::tuple { "!"sv,         Word::Kind::Boolean_Negate },
+	std::tuple { "!="sv,        Word::Kind::Not_Equal },
+	std::tuple { "*"sv,         Word::Kind::Mul },
+	std::tuple { "+"sv,         Word::Kind::Add },
+	std::tuple { "-"sv,         Word::Kind::Subtract },
+	std::tuple { "."sv,         Word::Kind::Print },
+	std::tuple { "2dup"sv,      Word::Kind::Two_Dup },
+	std::tuple { "<"sv,         Word::Kind::Less },
+	std::tuple { "<<"sv,        Word::Kind::Left_Shift },
+	std::tuple { "<="sv,        Word::Kind::Less_Eq },
+	std::tuple { "="sv,         Word::Kind::Equal },
+	std::tuple { ">"sv,         Word::Kind::Greater },
+	std::tuple { ">="sv,        Word::Kind::Greater_Eq },
+	std::tuple { ">>"sv,        Word::Kind::Right_Shift },
+	std::tuple { "and"sv,       Word::Kind::Boolean_And },
+	std::tuple { "[]byte"sv,    Word::Kind::Define_Byte_Array },
+	std::tuple { "constant"sv,  Word::Kind::Define_Constant },
+	std::tuple { "div"sv,       Word::Kind::Div },
+	std::tuple { "divmod"sv,    Word::Kind::Div_Mod },
+	std::tuple { "do"sv,        Word::Kind::Do },
+	std::tuple { "dup"sv,       Word::Kind::Dup },
+	std::tuple { "else"sv,      Word::Kind::Else },
+	std::tuple { "end"sv,       Word::Kind::End },
+	std::tuple { "if"sv,        Word::Kind::If },
+	std::tuple { "mod"sv,       Word::Kind::Mod },
+	std::tuple { "nl"sv,        Word::Kind::Newline },
+	std::tuple { "or"sv,        Word::Kind::Boolean_Or },
+	std::tuple { "peek"sv,      Word::Kind::Read8 },
+	std::tuple { "poke"sv,      Word::Kind::Write8 },
+	std::tuple { "print"sv,     Word::Kind::Print_CString },
+	std::tuple { "swap"sv,      Word::Kind::Swap },
+	std::tuple { "syscall0"sv,  Word::Kind::Syscall0 },
+	std::tuple { "syscall1"sv,  Word::Kind::Syscall1 },
+	std::tuple { "syscall2"sv,  Word::Kind::Syscall2 },
+	std::tuple { "syscall3"sv,  Word::Kind::Syscall3 },
+	std::tuple { "syscall4"sv,  Word::Kind::Syscall4 },
+	std::tuple { "syscall5"sv,  Word::Kind::Syscall5 },
+	std::tuple { "syscall6"sv,  Word::Kind::Syscall6 },
+	std::tuple { "top"sv,       Word::Kind::Top },
+	std::tuple { "while"sv,     Word::Kind::While }
 );
 
 static_assert(Words_To_Kinds.size() == static_cast<int>(Word::Kind::Last) + 1 - Word::Wordless_Kinds, "Words_To_Kinds should cover all possible kinds!");
@@ -282,9 +282,9 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 		} break;
 
 		case Word::Kind::Define_Constant: {
-			ensure(i >= 1, word,                                    "define-constant requires compile time integer");
-			ensure(words[i-1].kind == Word::Kind::Identifier, word, "define-bytes should be preceeded by an indentifier, e.g. `42 meaning-of-life define-constant`");
-			ensure(words[i-2].kind == Word::Kind::Integer, word,    "define-constant should be precedded by an integer, e.g. `42 meaning-of-life define-constant`");
+			ensure(i >= 1, word,                                    "constant requires compile time integer");
+			ensure(words[i-1].kind == Word::Kind::Identifier, word, "constant should be preceeded by an indentifier, e.g. `42 meaning-of-life constant`");
+			ensure(words[i-2].kind == Word::Kind::Integer, word,    "constant should be precedded by an integer, e.g. `42 meaning-of-life define-constant`");
 
 			user_defined_words[words[i-1].sval] = {
 				word,
@@ -303,9 +303,9 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 		} break;
 
 		case Word::Kind::Define_Byte_Array: {
-			ensure(i >= 2, word,                                    "define-bytes requires two compile time arguments!");
-			ensure(words[i-1].kind == Word::Kind::Identifier, word, "define-bytes should be preceded by an identifier, e.g. `10 foo define-bytes`");
-			ensure(words[i-2].kind == Word::Kind::Integer, word,    "define-bytes should be precedded by an integer, e.g. `10 foo define-bytes`");
+			ensure(i >= 2, word,                                    "[]byte requires two compile time arguments!");
+			ensure(words[i-1].kind == Word::Kind::Identifier, word, "[]byte should be preceded by an identifier, e.g. `10 foo define-bytes`");
+			ensure(words[i-2].kind == Word::Kind::Integer, word,    "[]byte should be precedded by an integer, e.g. `10 foo define-bytes`");
 
 			auto &def = user_defined_words[words[i-1].sval] = {
 				word,

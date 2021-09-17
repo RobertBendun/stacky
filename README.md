@@ -6,7 +6,7 @@
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```ruby
-5 hello-count define-constant
+5 hello-count constant
 hello-count hello []byte
 
 0 while dup hello-count = ! do
@@ -57,7 +57,7 @@ end
 - `=` - if top = one before top then push 1 onto stack, else push 0
 - `and` - boolean and
 - `[]byte` - static array declaration where size(cell) = 8bit
-- `define-constant` - integer constant declaration
+- `constant` - integer constant declaration
 - `div` - divide one before top by top and pushes division result
 - `divmod` - divides one before top by top and pushes division result and modulo result
 - `dup` - duplicate top element
