@@ -411,6 +411,15 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	asm_file << "_start:\n";
 }
 
+#define Binary_Operation(Op_Kind, Name, Implementation) \
+	case Word::Kind::Op_Kind: \
+		asm_file << "	;;" Name "\n"; \
+		asm_file << "	pop rbx\n"; \
+		asm_file << "	pop rax\n"; \
+		asm_file << (Implementation); \
+		asm_file << "	push rax\n"; \
+		break
+
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
 {
 	std::unordered_set<std::string> undefined_words;
@@ -462,29 +471,19 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	call _stacky_print_u64\n";
 			break;
 
-		case Word::Kind::Add:
-			asm_file << "	;; add\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	add rax, rbx\n";
-			asm_file << "	push rax\n";
-			break;
-
-		case Word::Kind::Subtract:
-			asm_file << "	;; subtract\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	sub rax, rbx\n";
-			asm_file << "	push rax\n";
-			break;
-
-		case Word::Kind::Mul:
-			asm_file << "	;; mul\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	imul rax, rbx\n";
-			asm_file << "	push rax\n";
-			break;
+Binary_Operation(Add, "add", "add rax, rbx\n");
+Binary_Operation(Subtract, "subtract", "sub rax, rbx\n");
+Binary_Operation(Mul, "multiply", "imul rax, rbx\n");
+Binary_Operation(Boolean_Or, "or",
+		"xor rcx, rcx\n"
+		"or rax, rbx\n"
+		"setne cl\n"
+		"mov rax, rcx\n");
+Binary_Operation(Boolean_And, "and",
+		"xor rcx, rcx\n"
+		"and rax, rbx\n"
+		"setne cl\n"
+		"mov rax, rcx\n");
 
 		case Word::Kind::Left_Shift:
 			asm_file << "	;; left shift\n";
@@ -560,25 +559,6 @@ divmod_start:
 			asm_file << "	push rax\n";
 			break;
 
-		case Word::Kind::Boolean_Or:
-			asm_file << "	;; or\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	xor eax, eax\n";
-			asm_file << "	or rbx, rcx\n";
-			asm_file << "	setne al\n";
-			asm_file << "	push rax\n";
-			break;
-
-		case Word::Kind::Boolean_And:
-			asm_file << "	;; and\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	xor eax, eax\n";
-			asm_file << "	and rbx, rcx\n";
-			asm_file << "	setne al\n";
-			asm_file << "	push rax\n";
-			break;
 
 		case Word::Kind::Equal:
 		case Word::Kind::Not_Equal:
