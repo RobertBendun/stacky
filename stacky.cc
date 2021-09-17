@@ -500,7 +500,9 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		Impl_Math(Bitwise_And,  "bitwise and",  "and rax, rbx\n");
 		Impl_Math(Bitwise_Or,   "bitwise or",   "or rax, rbx\n");
 		Impl_Math(Bitwise_Xor,  "bitwise xor",  "xor rax, rbx\n");
+		Impl_Math(Left_Shift,   "left shift",   "mov rcx, rax\nsal rax, cl\n");
 		Impl_Math(Mul,          "multiply",     "imul rax, rbx\n");
+		Impl_Math(Right_Shift,  "right shift",  "mov rcx, rax\nsar rax, cl\n");
 		Impl_Math(Subtract,     "subtract",     "sub rax, rbx\n");
 		Impl_Math(Boolean_Or,  "or",
 				"xor rcx, rcx\n"
@@ -516,22 +518,6 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		Impl_Div(Div,      "div",     "push rax\n");
 		Impl_Div(Div_Mod,  "divmod",  "push rdx\npush rax\n");
 		Impl_Div(Mod,      "mod",     "push rdx\n");
-
-		case Word::Kind::Left_Shift:
-			asm_file << "	;; left shift\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	sal rbx, cl\n";
-			asm_file << "	push rbx\n";
-			break;
-
-		case Word::Kind::Right_Shift:
-			asm_file << "	;; right shift\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	shr rbx, cl\n";
-			asm_file << "	push rbx\n";
-			break;
 
 		case Word::Kind::Top:
 			asm_file << "	;; top\n";
