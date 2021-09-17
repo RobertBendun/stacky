@@ -410,13 +410,33 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	asm_file << "_start:\n";
 }
 
-#define Binary_Operation(Op_Kind, Name, Implementation) \
+#define Impl_Math(Op_Kind, Name, Implementation) \
 	case Word::Kind::Op_Kind: \
 		asm_file << "	;;" Name "\n"; \
 		asm_file << "	pop rbx\n"; \
 		asm_file << "	pop rax\n"; \
 		asm_file << (Implementation); \
 		asm_file << "	push rax\n"; \
+		break
+
+#define Impl_Compare(Op, Name, Suffix) \
+	case Word::Kind::Op: \
+		asm_file << "	;; " Name "\n"; \
+		asm_file << "	xor rax, rax\n"; \
+		asm_file << "	pop rbx\n"; \
+		asm_file << "	pop rcx\n"; \
+		asm_file << "	cmp rcx, rbx\n"; \
+		asm_file << "	set" Suffix " al\n"; \
+		asm_file << "	push rax\n"; \
+		break
+
+#define Impl_Div(Op, Name, End) \
+	case Word::Kind::Op: \
+		asm_file << "	;; "Name"\n"; \
+		asm_file << "	xor rdx, rdx\n"; \
+		asm_file << "	pop rbx\n"; \
+		asm_file << "	pop rax\n"; \
+		asm_file << "	div rbx\n" End; \
 		break
 
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
@@ -470,19 +490,23 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	call _stacky_print_u64\n";
 			break;
 
-Binary_Operation(Add, "add", "add rax, rbx\n");
-Binary_Operation(Subtract, "subtract", "sub rax, rbx\n");
-Binary_Operation(Mul, "multiply", "imul rax, rbx\n");
-Binary_Operation(Boolean_Or, "or",
-		"xor rcx, rcx\n"
-		"or rax, rbx\n"
-		"setne cl\n"
-		"mov rax, rcx\n");
-Binary_Operation(Boolean_And, "and",
-		"xor rcx, rcx\n"
-		"and rax, rbx\n"
-		"setne cl\n"
-		"mov rax, rcx\n");
+		Impl_Math(Add,         "add",       "add rax,  rbx\n");
+		Impl_Math(Mul,         "multiply",  "imul rax, rbx\n");
+		Impl_Math(Subtract,    "subtract",  "sub rax,  rbx\n");
+		Impl_Math(Boolean_Or,  "or",
+				"xor rcx, rcx\n"
+				"or rax, rbx\n"
+				"setne cl\n"
+				"mov rax, rcx\n");
+		Impl_Math(Boolean_And, "and",
+				"xor rcx, rcx\n"
+				"and rax, rbx\n"
+				"setne cl\n"
+				"mov rax, rcx\n");
+
+		Impl_Div(Div,      "div",     "push rax\n");
+		Impl_Div(Div_Mod,  "divmod",  "push rdx\npush rax\n");
+		Impl_Div(Mod,      "mod",     "push rdx\n");
 
 		case Word::Kind::Left_Shift:
 			asm_file << "	;; left shift\n";
@@ -530,25 +554,6 @@ Binary_Operation(Boolean_And, "and",
 			asm_file << "	push rbx\n";
 			break;
 
-		case Word::Kind::Div:
-			asm_file << "	;; div\n";
-			goto divmod_start;
-		case Word::Kind::Mod:
-			asm_file << "	;; mod\n";
-			goto divmod_start;
-		case Word::Kind::Div_Mod:
-			asm_file << "	;; divmod\n";
-divmod_start:
-			asm_file << "	xor rdx, rdx\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	div rbx\n";
-			if (word.kind == Word::Kind::Mod || word.kind == Word::Kind::Div_Mod)
-				asm_file << "	push rdx\n";
-			if (word.kind == Word::Kind::Div || word.kind == Word::Kind::Div_Mod)
-				asm_file << "	push rax\n";
-			break;
-
 		case Word::Kind::Boolean_Negate:
 			asm_file << "	;; negate\n";
 			asm_file << "	pop rbx\n";
@@ -558,29 +563,12 @@ divmod_start:
 			asm_file << "	push rax\n";
 			break;
 
-
-		case Word::Kind::Equal:
-		case Word::Kind::Not_Equal:
-		case Word::Kind::Greater:
-		case Word::Kind::Greater_Eq:
-		case Word::Kind::Less:
-		case Word::Kind::Less_Eq:
-			asm_file << "	;; equal\n";
-			asm_file << "	xor rax, rax\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	cmp rcx, rbx\n";
-			asm_file << "	set" << (
-					word.kind == Word::Kind::Equal      ? "e"  :
-					word.kind == Word::Kind::Greater    ? "a"  :
-					word.kind == Word::Kind::Greater_Eq ? "nb" :
-					word.kind == Word::Kind::Less       ? "b"  :
-					word.kind == Word::Kind::Less_Eq    ? "be" :
-					word.kind == Word::Kind::Not_Equal  ? "ne" :
-						(assert(false), nullptr)
-				) << " al\n";
-			asm_file << " push rax\n";
-			break;
+		Impl_Compare(Word::Kind::Equal,       "equal",             "e");
+		Impl_Compare(Word::Kind::Greater,     "greater",           "a");
+		Impl_Compare(Word::Kind::Greater_Eq,  "greater or equal",  "nb");
+		Impl_Compare(Word::Kind::Less,        "less",              "b");
+		Impl_Compare(Word::Kind::Less_Eq,     "less or equal",     "be");
+		Impl_Compare(Word::Kind::Not_Equal,   "not equal",         "ne");
 
 		case Word::Kind::Push_Symbol:
 			if (word_has_been_defined(word)) {
