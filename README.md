@@ -19,6 +19,12 @@ hello 1 1 syscall3 # syscall write(1, hello, 5)
 nl
 ```
 
+## Makefile
+- `make install-nvim` - installs Stacky's syntax highlighting for Neovim
+- `make stacky` - makes only compiler
+- `make test` - runs all tests
+- `make clean` - cleans all intermidiate files
+
 ## Language reference
 
 ###  Comments

@@ -4,6 +4,7 @@ Compiled_Examples=$(basename $(Examples))
 Compiler=g++
 Options=-std=c++20 -Wall -Wextra -Werror=switch
 
+
 .PHONY:
 all: stacky run-tests $(Compiled_Examples)
 
@@ -34,3 +35,7 @@ test: run-tests stacky
 .PHONY: stat
 stat:
 	cloc --read-lang-def=etc/cloc-stacky-definition.txt --exclude-lang=Zig .
+
+.PHONY: install-nvim
+install-nvim: etc/stacky.vim
+	cp $< /usr/share/nvim/runtime/syntax/
