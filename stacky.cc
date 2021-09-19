@@ -69,6 +69,9 @@ struct Word
 		Swap,
 		Tuck,
 		Two_Dup,
+		Two_Drop,
+		Two_Over,
+		Two_Swap,
 
 		// --- LITERALS ---
 		Identifier,
@@ -134,7 +137,10 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "+"sv,         Word::Kind::Add },
 	std::tuple { "-"sv,         Word::Kind::Subtract },
 	std::tuple { "."sv,         Word::Kind::Print },
+	std::tuple { "2drop"sv,     Word::Kind::Two_Drop },
 	std::tuple { "2dup"sv,      Word::Kind::Two_Dup },
+	std::tuple { "2over"sv,     Word::Kind::Two_Over },
+	std::tuple { "2swap"sv,     Word::Kind::Two_Swap },
 	std::tuple { "<"sv,         Word::Kind::Less },
 	std::tuple { "<<"sv,        Word::Kind::Left_Shift },
 	std::tuple { "<="sv,        Word::Kind::Less_Eq },
@@ -537,6 +543,11 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	add rsp, 8\n";
 			break;
 
+		case Word::Kind::Two_Drop:
+			asm_file << "	;; 2drop\n";
+			asm_file << "	add rsp, 16\n";
+			break;
+
 		case Word::Kind::Dup:
 			asm_file << "	;; dup\n";
 			asm_file << "	push qword [rsp]\n";
@@ -553,6 +564,12 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	push qword [rsp+8]\n";
 			break;
 
+		case Word::Kind::Two_Over:
+			asm_file << "	;; 2over\n";
+			asm_file << "	push qword [rsp+24]\n";
+			asm_file << "	push qword [rsp+24]\n";
+			break;
+
 		case Word::Kind::Tuck:
 			asm_file << "	;; tuck\n";
 			asm_file << "	pop rax\n";
@@ -564,12 +581,10 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 
 		case Word::Kind::Rot:
 			asm_file << "	;; rot\n";
-			asm_file << " pop rax\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rcx\n";
-			asm_file << "	push rbx\n";
-			asm_file << "	push rax\n";
-			asm_file << "	push rcx\n";
+			asm_file << "	movdqu xmm0, [rsp]\n";
+			asm_file << "	mov rcx, [rsp+16]\n";
+			asm_file << "	mov [rsp], rcx\n";
+			asm_file << "	movups [rsp+8], xmm0\n";
 			break;
 
 		case Word::Kind::Swap:
@@ -578,6 +593,16 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	pop rbx\n";
 			asm_file << "	push rax\n";
 			asm_file << "	push rbx\n";
+			break;
+
+		case Word::Kind::Two_Swap:
+			asm_file << "	;; 2swap\n";
+			asm_file << "	movdqu xmm0, [rsp]\n";
+			asm_file << "	mov rax, [rsp+16]\n";
+			asm_file << "	mov [rsp], rax\n";
+			asm_file << "	mov rax, [rsp+24]\n";
+			asm_file << "	mov [rsp+8], rax\n";
+			asm_file << "	movups [rsp+16], xmm0\n";
 			break;
 
 		case Word::Kind::Boolean_Negate:
