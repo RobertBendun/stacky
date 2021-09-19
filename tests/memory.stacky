@@ -1,0 +1,3 @@
+# dot compare
+1 b1 []byte
+b1 511 poke b1 peek .
