@@ -428,7 +428,7 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 		}
 	}
 
-	asm_file << "segment .data\n";
+	asm_file << "segment .rodata\n";
 	for (auto const& [key, value] : definitions) {
 		switch (value.word.kind) {
 		case Word::Kind::String: label(value) << "db " << value.word.sval << ", 0\n"; break;
