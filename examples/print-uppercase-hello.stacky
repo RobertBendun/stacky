@@ -7,4 +7,5 @@ hello-count hello []byte
 	1 +
 end
 
-hello-count hello 1 1 syscall3 # syscall write(1, hello, 5)
+hello 1 1 syscall3 # syscall write(1, hello, 5)
+nl

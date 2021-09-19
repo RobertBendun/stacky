@@ -9,13 +9,14 @@ Program printing "HELLO" to stdout, that was transformed from "hello"
 5 hello-count constant
 hello-count hello []byte
 
-0 while dup hello-count = ! do
+0 while dup hello-count < do
 	dup dup "hello" + peek 32 -
 	swap hello + swap poke
 	1 +
 end
 
-hello-count hello 1 1 syscall3 # syscall write(1, hello, 5)
+hello 1 1 syscall3 # syscall write(1, hello, 5)
+nl
 ```
 
 ## Language reference
