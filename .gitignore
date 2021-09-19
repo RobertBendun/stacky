@@ -3,8 +3,10 @@
 03-loops
 04-fizzbuzz
 05-uppercase-hello
+arithmetic
 *.o
 stacky
+run-tests
 stdlib-symbols.cc
 *.zig
 *.asm
