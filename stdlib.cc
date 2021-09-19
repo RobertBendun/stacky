@@ -60,7 +60,7 @@ extern "C" {
 		unsigned pos = len - 1;
 
 		while (v >= 10) {
-			unsigned const q = v / 10;
+			std::uint64_t const q = v / 10;
 			unsigned const r = v % 10;
 			buffer[pos--] = '0' + r;
 			v = q;
