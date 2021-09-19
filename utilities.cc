@@ -27,3 +27,24 @@ constexpr auto linear(auto difference, auto fst, auto snd, auto ...rest) -> bool
 	else
 		return enum2int(snd) - enum2int(fst) == difference;
 }
+
+auto run_command(bool quiet, auto const& ...messages) -> int
+{
+	std::stringstream ss;
+	(ss << ... << messages);
+	auto command = std::move(ss).str();
+	if (!quiet) std::cout << "[CMD] " << command << '\n';
+	return std::system(command.c_str());
+}
+
+template<typename It>
+constexpr auto find_nth(It begin, It end, std::integral auto count, std::equality_comparable_with<std::iter_value_t<It>> auto const& v) -> It
+{
+	auto found = begin;
+	while (count-- > 0)
+		if (auto const result = std::find(found, end, v); result != end)
+			found = result;
+		else
+			break;
+	return found;
+}

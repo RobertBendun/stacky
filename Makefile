@@ -1,14 +1,20 @@
 Examples=$(wildcard examples/*.stacky)
 Compiled_Examples=$(basename $(Examples))
 
+Compiler=g++
+Options=-std=c++20 -Wall -Wextra -Werror=switch
+
 .PHONY:
-all: $(Compiled_Examples) stacky
+all: stacky run-tests
 
 stacky: stacky.cc utilities.cc errors.cc stdlib-symbols.cc stdlib.o
-	g++ -std=c++20 -Wall -Wextra -Werror=switch $< -o $@
+	$(Compiler) $(Options) $< -o $@
+
+run-tests: run-tests.cc errors.cc utilities.cc ipstream.hh
+	$(Compiler) $(Options) $< -o $@
 
 stdlib.o: stdlib.cc
-	g++ -nostdlib -c -std=c++20 $< -o $@ -Wall -Wextra -fno-rtti -fno-exceptions -fno-stack-protector
+	$(Compiler) -nostdlib -c  $< -o $@ $(Options) -fno-rtti -fno-exceptions -fno-stack-protector
 
 stdlib-symbols.cc: gen-stdlib-symbols stdlib.cc
 	 ./gen-stdlib-symbols > stdlib-symbols.cc
@@ -18,4 +24,9 @@ examples/%: examples/%.stacky stacky stdlib.o
 
 .PHONY: clean
 clean:
-	rm -f stacky $(Compiled_Examples) examples/*.asm examples/*.o stdlib-symbols.cc
+	rm -f stacky run-tests tests/*.asm tests/*.o examples/*.asm examples/*.o stdlib-symbols.cc \
+		$(shell find tests examples -type f -executable -not -name "*.stacky" -print)
+
+.PHONY: test
+test: run-tests
+	./$< --quiet
