@@ -2,8 +2,8 @@
 hello-count hello []byte
 
 0 while dup hello-count < do
-	dup dup "hello" + peek 32 -
-	swap hello + swap poke
+	dup dup "hello" + read8 32 -
+	swap hello + swap write8
 	1 +
 end
 

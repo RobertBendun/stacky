@@ -1,16 +1,16 @@
 1 printed []byte
 1 while dup 100 = ! do
-	printed 1 poke
+	printed 1 write8
 	dup	3 mod 0 = if
 		"fizz" print
-		printed 0 poke
+		printed 0 write8
 	end
 	dup 5 mod 0 = if
 		"buzz" print
-		printed 0 poke
+		printed 0 write8
 	end
 
-	printed peek if
+	printed read8 if
 		dup .
 	else
 		nl

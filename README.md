@@ -10,8 +10,8 @@ Program printing "HELLO" to stdout, that was transformed from "hello"
 hello-count hello []byte
 
 0 while dup hello-count < do
-	dup dup "hello" + peek 32 -
-	swap hello + swap poke
+	dup dup "hello" + read8 32 -
+	swap hello + swap write8
 	1 +
 end
 
@@ -67,8 +67,8 @@ end
 - `nl` - prints newline
 - `or` - boolean or
 - `over` - `( a b -- a b a )`
-- `peek` - read from memory
-- `poke` - write to memory
+- `read<n>` - read from memory n bits where n = 8, 16, 32 or 64 from top element on stack
+- `write<n>` - write to memory n bits where n = 8, 16, 32 or 64 from top element on stack
 - `print` - print null terminated string
 - `rot` - `( a b c -- b c a )`
 - `swap` - swap top with before top stack element

@@ -91,7 +91,13 @@ struct Word
 
 		// --- MEMORY ---
 		Read8,
+		Read16,
+		Read32,
+		Read64,
 		Write8,
+		Write16,
+		Write32,
+		Write64,
 		Top,
 
 		// --- STDLIB, OS ---
@@ -166,8 +172,14 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "nl"sv,        Word::Kind::Newline },
 	std::tuple { "or"sv,        Word::Kind::Boolean_Or },
 	std::tuple { "over"sv,      Word::Kind::Over },
-	std::tuple { "peek"sv,      Word::Kind::Read8 },
-	std::tuple { "poke"sv,      Word::Kind::Write8 },
+	std::tuple { "read8"sv,     Word::Kind::Read8 },
+	std::tuple { "read16"sv,    Word::Kind::Read16 },
+	std::tuple { "read32"sv,    Word::Kind::Read32 },
+	std::tuple { "read64"sv,    Word::Kind::Read64 },
+	std::tuple { "write8"sv,    Word::Kind::Write8 },
+	std::tuple { "write16"sv,   Word::Kind::Write16 },
+	std::tuple { "write32"sv,   Word::Kind::Write32 },
+	std::tuple { "write64"sv,   Word::Kind::Write64 },
 	std::tuple { "print"sv,     Word::Kind::Print_CString },
 	std::tuple { "rot"sv,       Word::Kind::Rot },
 	std::tuple { "swap"sv,      Word::Kind::Swap },
@@ -480,6 +492,8 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		return true;
 	};
 
+	char const* const Register_B_By_Size[] = { "bl", "bx", "ebx", "rbx" };
+
 	unsigned i = 0;
 	for (auto words_it = std::cbegin(words); words_it != std::cend(words); ++words_it, ++i) {
 		auto const& word = *words_it;
@@ -629,19 +643,33 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			break;
 
 		case Word::Kind::Read8:
-			asm_file << "	;; read8\n";
+		case Word::Kind::Read16:
+		case Word::Kind::Read32:
+		case Word::Kind::Read64: {
+			static_assert(linear(1,
+				Word::Kind::Read8, Word::Kind::Read16,
+				Word::Kind::Read32, Word::Kind::Read64));
+			auto const offset = int(word.kind) - int(Word::Kind::Read8);
+			asm_file << "	;; read" << (8 << offset) << "\n";
 			asm_file << "	pop rax\n";
 			asm_file << "	xor rbx, rbx\n";
-			asm_file << "	mov bl, [rax]\n";
+			asm_file << "	mov " << Register_B_By_Size[offset] << ", [rax]\n";
 			asm_file << "	push rbx\n";
-			break;
+		} break;
 
 		case Word::Kind::Write8:
-			asm_file << "	;; write8\n";
+		case Word::Kind::Write16:
+		case Word::Kind::Write32:
+		case Word::Kind::Write64: {
+			static_assert(linear(1,
+				Word::Kind::Write8, Word::Kind::Write16,
+				Word::Kind::Write32, Word::Kind::Write64));
+			auto const offset = int(word.kind) - int(Word::Kind::Write8);
+			asm_file << "	;; write" << (8 << offset) << "\n";
 			asm_file << "	pop rbx\n";
 			asm_file << "	pop rax\n";
-			asm_file << "	mov [rax], bl\n";
-			break;
+			asm_file << "	mov [rax], " << Register_B_By_Size[offset] << "\n";
+		} break;
 
 		case Word::Kind::Print_CString:
 			asm_file << "	;; print cstring\n";
