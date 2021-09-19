@@ -24,9 +24,13 @@ examples/%: examples/%.stacky stacky stdlib.o
 
 .PHONY: clean
 clean:
-	rm -f stacky run-tests tests/*.asm tests/*.o examples/*.asm examples/*.o stdlib-symbols.cc \
-		$(shell find tests examples -type f -executable -not -name "*.stacky" -print)
+	rm -f stacky run-tests tests/*.asm tests/*.o examples/*.asm examples/*.o *.o *.asm stdlib-symbols.cc
+	rm -f $(shell find tests examples -type f -executable -not -name "*.stacky" -print)
 
 .PHONY: test
 test: run-tests
 	./$< --quiet
+
+.PHONY: stat
+stat:
+	cloc --read-lang-def=etc/cloc-stacky-definition.txt --exclude-lang=Zig .
