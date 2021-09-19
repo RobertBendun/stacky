@@ -1,0 +1,5 @@
+# dot compare
+2 1 drop .
+1 2 over . . .
+3 dup . .
+1 2 2dup . . . .

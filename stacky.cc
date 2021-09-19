@@ -65,6 +65,8 @@ struct Word
 		Push_Symbol,
 		Swap,
 		Two_Dup,
+		Drop,
+		Over,
 
 		// --- LITERALS ---
 		Identifier,
@@ -147,6 +149,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "div"sv,       Word::Kind::Div },
 	std::tuple { "divmod"sv,    Word::Kind::Div_Mod },
 	std::tuple { "do"sv,        Word::Kind::Do },
+	std::tuple { "drop"sv,      Word::Kind::Drop },
 	std::tuple { "dup"sv,       Word::Kind::Dup },
 	std::tuple { "else"sv,      Word::Kind::Else },
 	std::tuple { "end"sv,       Word::Kind::End },
@@ -154,6 +157,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "mod"sv,       Word::Kind::Mod },
 	std::tuple { "nl"sv,        Word::Kind::Newline },
 	std::tuple { "or"sv,        Word::Kind::Boolean_Or },
+	std::tuple { "over"sv,      Word::Kind::Over },
 	std::tuple { "peek"sv,      Word::Kind::Read8 },
 	std::tuple { "poke"sv,      Word::Kind::Write8 },
 	std::tuple { "print"sv,     Word::Kind::Print_CString },
@@ -524,21 +528,25 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			asm_file << "	push rsp\n";
 			break;
 
+		case Word::Kind::Drop:
+			asm_file << "	;; drop\n";
+			asm_file << "	add rsp, 8\n";
+			break;
+
 		case Word::Kind::Dup:
 			asm_file << "	;; dup\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	push rax\n";
-			asm_file << "	push rax\n";
+			asm_file << "	push qword [rsp]\n";
 			break;
 
 		case Word::Kind::Two_Dup:
 			asm_file << "	;; 2dup\n";
-			asm_file << "	pop rbx\n";
-			asm_file << "	pop rax\n";
-			for (int i = 0; i < 2; ++i) {
-				asm_file << "	push rax\n";
-				asm_file << "	push rbx\n";
-			}
+			asm_file << "	push qword [rsp+8]\n";
+			asm_file << "	push qword [rsp+8]\n";
+			break;
+
+		case Word::Kind::Over:
+			asm_file << "	;; over\n";
+			asm_file << "	push qword [rsp+8]\n";
 			break;
 
 		case Word::Kind::Swap:

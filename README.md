@@ -55,15 +55,17 @@ end
 - `.` - print top to stdout
 - `<int>` - push integer literal (currently only natural numbers up to 2^63-1) onto a stack
 - `=` - if top = one before top then push 1 onto stack, else push 0
-- `and` - boolean and
 - `[]byte` - static array declaration where size(cell) = 8bit
+- `and` - boolean and
 - `constant` - integer constant declaration
 - `div` - divide one before top by top and pushes division result
 - `divmod` - divides one before top by top and pushes division result and modulo result
+- `drop` - drop top element from the stack
 - `dup` - duplicate top element
 - `mod` - pops 2 numbers and gives modulo
 - `nl` - prints newline
 - `or` - boolean or
+- `over` - `( a b -- a b a )`
 - `peek` - read from memory
 - `poke` - write to memory
 - `print` - print null terminated string
