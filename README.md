@@ -69,8 +69,10 @@ end
 - `peek` - read from memory
 - `poke` - write to memory
 - `print` - print null terminated string
+- `rot` - `( a b c -- b c a )`
 - `swap` - swap top with before top stack element
 - `syscall<n>` - where n >= 0 and n <= 6, e.g. syscall exit(123) `123 60 syscall3`
+- `tuck` - `( x1 x2 -- x2 x1 x2 )`
 
 for more documentation currently only source is a source code of compiler.
 

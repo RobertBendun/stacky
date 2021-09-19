@@ -60,13 +60,15 @@ struct Word
 		Subtract,
 
 		// --- STACK ---
+		Drop,
 		Dup,
+		Over,
 		Print_CString,
 		Push_Symbol,
+		Rot,
 		Swap,
+		Tuck,
 		Two_Dup,
-		Drop,
-		Over,
 
 		// --- LITERALS ---
 		Identifier,
@@ -161,6 +163,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "peek"sv,      Word::Kind::Read8 },
 	std::tuple { "poke"sv,      Word::Kind::Write8 },
 	std::tuple { "print"sv,     Word::Kind::Print_CString },
+	std::tuple { "rot"sv,       Word::Kind::Rot },
 	std::tuple { "swap"sv,      Word::Kind::Swap },
 	std::tuple { "syscall0"sv,  Word::Kind::Syscall0 },
 	std::tuple { "syscall1"sv,  Word::Kind::Syscall1 },
@@ -170,6 +173,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "syscall5"sv,  Word::Kind::Syscall5 },
 	std::tuple { "syscall6"sv,  Word::Kind::Syscall6 },
 	std::tuple { "top"sv,       Word::Kind::Top },
+	std::tuple { "tuck"sv,      Word::Kind::Tuck },
 	std::tuple { "while"sv,     Word::Kind::While }
 );
 
@@ -547,6 +551,25 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		case Word::Kind::Over:
 			asm_file << "	;; over\n";
 			asm_file << "	push qword [rsp+8]\n";
+			break;
+
+		case Word::Kind::Tuck:
+			asm_file << "	;; tuck\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	push rax\n";
+			asm_file << "	push rbx\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Word::Kind::Rot:
+			asm_file << "	;; rot\n";
+			asm_file << " pop rax\n";
+			asm_file << "	pop rbx\n";
+			asm_file << "	pop rcx\n";
+			asm_file << "	push rbx\n";
+			asm_file << "	push rax\n";
+			asm_file << "	push rcx\n";
 			break;
 
 		case Word::Kind::Swap:

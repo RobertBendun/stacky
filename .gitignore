@@ -4,6 +4,7 @@
 04-fizzbuzz
 05-uppercase-hello
 arithmetic
+stack-ops
 *.o
 stacky
 run-tests
