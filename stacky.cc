@@ -53,6 +53,8 @@ struct Word
 		Left_Shift,
 		Less,
 		Less_Eq,
+		Max,
+		Min,
 		Mod,
 		Mul,
 		Not_Equal,
@@ -154,6 +156,8 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { ">"sv,         Word::Kind::Greater },
 	std::tuple { ">="sv,        Word::Kind::Greater_Eq },
 	std::tuple { ">>"sv,        Word::Kind::Right_Shift },
+	std::tuple { "min"sv,       Word::Kind::Min },
+	std::tuple { "max"sv,       Word::Kind::Max },
 	std::tuple { "[]byte"sv,    Word::Kind::Define_Byte_Array },
 	std::tuple { "and"sv,       Word::Kind::Boolean_And },
 	std::tuple { "bit-and"sv,   Word::Kind::Bitwise_And },
@@ -532,6 +536,8 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		Impl_Math(Mul,          "multiply",     "imul rax, rbx\n");
 		Impl_Math(Right_Shift,  "right shift",  "mov rcx, rbx\nsar rax, cl\n");
 		Impl_Math(Subtract,     "subtract",     "sub rax, rbx\n");
+		Impl_Math(Min,          "min",          "cmp rax, rbx\ncmova rax, rbx\n");
+		Impl_Math(Max,          "max",          "cmp rax, rbx\ncmovb rax, rbx\n");
 		Impl_Math(Boolean_Or,  "or",
 				"xor rcx, rcx\n"
 				"or rax, rbx\n"
