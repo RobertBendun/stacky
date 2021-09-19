@@ -20,7 +20,7 @@ static unsigned tests_passed = 0;
 
 template<typename It>
 requires std::is_same_v<std::iter_value_t<It>, char>
-struct Line_Column_Iterator : It
+struct Line_Column_Iterator : It, std::forward_iterator_tag
 {
 	Line_Column_Iterator() = default;
 	Line_Column_Iterator(It it) : It(it) { update(); }
@@ -144,17 +144,20 @@ int main(int argc, char **argv)
 		auto       program_it    = program_begin;
 		auto const program_end   = Line_Column_Iterator(std::cend(program));
 
-		for (bool failed = false;;) {
+		for (bool failed = false, end = false; !end;) {
 			std::tie(program_it, output_it) = std::mismatch(program_it, program_end, output_it, output_end);
-			if (program_it == program_end && output_it == output_end) {
+			if (auto status = (program_it == program_end) + (output_it == output_end); status == 2) {
 				tests_passed += !failed;
 				break;
+			} else if (status == 1) {
+				end = true;
 			}
 
 			failed = true;
-			auto const [pit, oit] = std::mismatch(program_it, program_end, output_it, output_end, std::not_equal_to{});
+			auto const pit = std::find_if(program_it, program_end, (int(*)(int))std::isspace);
+			auto const oit = std::find_if(output_it, output_end, (int(*)(int))std::isspace);
 			auto const first_dot = find_nth(source_begin, source_end, program_it.line, '.');
-			auto const last_dot = find_nth(first_dot, source_end, pit.line - program_it.line, '.');
+			auto const last_dot = find_nth(first_dot, source_end, pit.line - program_it.line - (*pit == '\n'), '.');
 
 			std::cout << "[FAIL] " << source_code_path << " diverges from provided expected output\n";
 

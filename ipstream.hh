@@ -3,6 +3,7 @@
 #include <ext/stdio_filebuf.h>
 #include <istream>
 #include <type_traits>
+#include <exception>
 
 #include <unistd.h>
 #include <paths.h>
@@ -21,6 +22,26 @@ namespace rp
     default_output = STDOUT_FILENO,
     error_output   = STDERR_FILENO
   };
+
+	struct Exit_Code_Exception : std::exception
+	{
+		virtual ~Exit_Code_Exception() = default;
+
+		explicit Exit_Code_Exception(int exit_code, std::string_view type) : exit_code(exit_code)
+		{
+			std::stringstream ss;
+			ss << "Program execution was " << type << " with exit code = " << exit_code;
+			message = std::move(ss).str();
+		}
+
+		virtual char const* what() const noexcept override
+		{
+			return message.c_str();
+		}
+
+		int exit_code;
+		std::string message;
+	};
 
   namespace ipstream_details
   {
@@ -61,10 +82,20 @@ namespace rp
     void close_process(__gnu_cxx::stdio_filebuf<CharT, Traits> &filebuf, pid_t pid)
     {
       int status;
-      [[maybe_unused]] ::pid_t retval = ::waitpid(pid, &status, 0);
+      assert(::waitpid(pid, &status, 0) != -1);
       filebuf.close();
+
+			if (WIFEXITED(status)) {
+				if (auto exit_code = WEXITSTATUS(status); exit_code != 0)
+					throw Exit_Code_Exception(exit_code, "exited");
+			} else if (WIFSIGNALED(status)) {
+				throw Exit_Code_Exception(WTERMSIG(status), "signaled");
+			} else if (WIFSTOPPED(status)) {
+				throw Exit_Code_Exception(WSTOPSIG(status), "stopped");
+			}
     }
   }
+
 
   template<typename CharT, typename Traits = std::char_traits<CharT>>
   struct basic_ipstream : std::basic_istream<CharT, Traits>
@@ -113,11 +144,8 @@ namespace rp
 
     void close()
     {
-      if (pid != -1) {
-        ::rp::ipstream_details::close_process(filebuf, pid);
-        pid = -1;
-      }
-      else if (filebuf.is_open())
+      ::rp::ipstream_details::close_process(filebuf, pid);
+      if (filebuf.is_open())
         filebuf.close();
     }
 

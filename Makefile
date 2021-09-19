@@ -5,16 +5,16 @@ Compiler=g++
 Options=-std=c++20 -Wall -Wextra -Werror=switch
 
 .PHONY:
-all: stacky run-tests
+all: stacky run-tests $(Compiled_Examples)
 
 stacky: stacky.cc utilities.cc errors.cc stdlib-symbols.cc stdlib.o
-	$(Compiler) $(Options) $< -o $@
+	$(Compiler) $(Options) $< -o $@ -O3
 
 run-tests: run-tests.cc errors.cc utilities.cc ipstream.hh
-	$(Compiler) $(Options) $< -o $@
+	$(Compiler) $(Options) $< -o $@ -O3
 
 stdlib.o: stdlib.cc
-	$(Compiler) -nostdlib -c  $< -o $@ $(Options) -fno-rtti -fno-exceptions -fno-stack-protector
+	$(Compiler) -nostdlib -c  $< -o $@ $(Options) -fno-rtti -fno-exceptions -fno-stack-protector -ggdb -O0
 
 stdlib-symbols.cc: gen-stdlib-symbols stdlib.cc
 	 ./gen-stdlib-symbols > stdlib-symbols.cc
@@ -28,8 +28,8 @@ clean:
 	rm -f $(shell find tests examples -type f -executable -not -name "*.stacky" -print)
 
 .PHONY: test
-test: run-tests
-	./$< --quiet
+test: run-tests stacky
+	./$<
 
 .PHONY: stat
 stat:

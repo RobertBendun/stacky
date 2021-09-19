@@ -500,9 +500,9 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		Impl_Math(Bitwise_And,  "bitwise and",  "and rax, rbx\n");
 		Impl_Math(Bitwise_Or,   "bitwise or",   "or rax, rbx\n");
 		Impl_Math(Bitwise_Xor,  "bitwise xor",  "xor rax, rbx\n");
-		Impl_Math(Left_Shift,   "left shift",   "mov rcx, rax\nsal rax, cl\n");
+		Impl_Math(Left_Shift,   "left shift",   "mov rcx, rbx\nsal rax, cl\n");
 		Impl_Math(Mul,          "multiply",     "imul rax, rbx\n");
-		Impl_Math(Right_Shift,  "right shift",  "mov rcx, rax\nsar rax, cl\n");
+		Impl_Math(Right_Shift,  "right shift",  "mov rcx, rbx\nsar rax, cl\n");
 		Impl_Math(Subtract,     "subtract",     "sub rax, rbx\n");
 		Impl_Math(Boolean_Or,  "or",
 				"xor rcx, rcx\n"

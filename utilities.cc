@@ -41,7 +41,7 @@ template<typename It>
 constexpr auto find_nth(It begin, It end, std::integral auto count, std::equality_comparable_with<std::iter_value_t<It>> auto const& v) -> It
 {
 	auto found = begin;
-	while (count-- > 0)
+	for (; count-- > 0; ++found)
 		if (auto const result = std::find(found, end, v); result != end)
 			found = result;
 		else
