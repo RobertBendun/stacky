@@ -14,3 +14,7 @@ factorial fun # (n -- n!)
 end
 
 5 factorial .
+
+&factorial &factorial = .
+
+5 &factorial call .

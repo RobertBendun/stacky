@@ -105,6 +105,8 @@ struct Word
 		Write32,
 		Write64,
 		Top,
+		Address_Of,
+		Call,
 
 		// --- STDLIB, OS ---
 		Newline,
@@ -127,7 +129,8 @@ struct Word
 		Kind::Integer,
 		Kind::Push_Symbol,
 		Kind::String,
-		Kind::Call_Symbol
+		Kind::Call_Symbol,
+		Kind::Address_Of
 	);
 
 	std::string_view file;
@@ -141,6 +144,8 @@ struct Word
 	// for if and while
 	static constexpr unsigned Empty_Jump = -1;
 	unsigned jump = Empty_Jump;
+
+	std::string_view symbol_prefix;
 };
 
 constexpr auto Words_To_Kinds = sorted_array_of_tuples(
@@ -168,6 +173,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "bit-and"sv,   Word::Kind::Bitwise_And },
 	std::tuple { "bit-or"sv,    Word::Kind::Bitwise_Or },
 	std::tuple { "bit-xor"sv,   Word::Kind::Bitwise_Xor },
+	std::tuple { "call"sv,      Word::Kind::Call },
 	std::tuple { "constant"sv,  Word::Kind::Define_Constant },
 	std::tuple { "div"sv,       Word::Kind::Div },
 	std::tuple { "divmod"sv,    Word::Kind::Div_Mod },
@@ -275,6 +281,8 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 					word.kind = Word::Kind::Integer;
 				else
 					assert_msg(ptr != file.data() + file.size() ? *ptr != '.' : true, "Floating point parsing is not implemented yet");
+			} else if (word.sval[0] == '&') {
+				word.kind = Word::Kind::Address_Of;
 			}
 		}
 
@@ -312,6 +320,18 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words) -> 
 	for (unsigned i = 0; i < words.size(); ++i) {
 		auto &word = words[i];
 		switch (word.kind) {
+		case Word::Kind::Address_Of: {
+			ensure(user_defined_words.contains(word.sval.substr(1)), "Cannot take address of undefined word!");
+			auto const& def = user_defined_words[word.sval.substr(1)];
+			for (auto &w : words) {
+				if (w.kind == Word::Kind::Address_Of && w.sval == word.sval) {
+					w.kind = Word::Kind::Push_Symbol;
+					w.symbol_prefix = Function_Prefix;
+					w.ival = def.id;
+				}
+			}
+		} break;
+
 		case Word::Kind::Define_Function: {
 			ensure(i >= 1 && words[i-1].kind == Word::Kind::Identifier, word, "function shoud be preceeded by an identifier");
 			auto fname = words[i-1].sval;
@@ -398,6 +418,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words) -> 
 				if (other.kind == Word::Kind::Identifier && other.sval == words[i-1].sval && j != i-1) {
 					other.kind = Word::Kind::Push_Symbol;
 					other.ival = def.id;
+					other.symbol_prefix = Symbol_Prefix;
 				}
 			}
 			} break;
@@ -583,6 +604,9 @@ auto generate_instructions(
 {
 
 	auto const word_has_been_defined = [&](auto &word) {
+		if (word.kind == Word::Kind::Push_Symbol)
+			return true;
+
 		if (!definitions.contains(word.sval) && !undefined_words.contains(word.sval)) {
 			error(word, "Word", std::quoted(word.sval), " has not been defined.");
 			undefined_words.insert(word.sval);
@@ -603,6 +627,10 @@ auto generate_instructions(
 			assert_msg(false, "define_words should eliminate all string words");
 			break;
 
+		case Word::Kind::Address_Of:
+			assert_msg(false, "define_words should eliminate all address words");
+			break;
+
 		case Word::Kind::Define_Byte_Array:
 		case Word::Kind::Define_Constant:
 		case Word::Kind::Define_Function:
@@ -615,6 +643,12 @@ auto generate_instructions(
 		case Word::Kind::Call_Symbol:
 			asm_file << "	;; call " << word.sval << '\n';
 			asm_file << "	call " Function_Prefix << word.ival << '\n';
+			break;
+
+		case Word::Kind::Call:
+			asm_file << "	;; stack call\n";
+			asm_file << "	pop rax\n";
+			asm_file << "	call rax\n";
 			break;
 
 		case Word::Kind::Integer:
@@ -745,7 +779,7 @@ auto generate_instructions(
 		case Word::Kind::Push_Symbol:
 			if (word_has_been_defined(word)) {
 				asm_file << "	;; push symbol\n";
-				asm_file << "	push " Symbol_Prefix << word.ival << '\n';
+				asm_file << "	push " << word.symbol_prefix << word.ival << '\n';
 			}
 			break;
 
