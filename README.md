@@ -25,6 +25,16 @@ nl
 - `make test` - runs all tests
 - `make clean` - cleans all intermidiate files
 
+## Requirements
+- [NASM](https://nasm.us/)
+- [LD](https://linux.die.net/man/1/ld)
+- [GCC with C++ compiler](https://gcc.gnu.org/) for compiler and stdlib compilation
+
+For Arch-based users:
+```shell
+pacman -S gcc binutils nasm
+```
+
 ## Language reference
 
 ###  Comments
