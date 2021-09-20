@@ -1,0 +1,38 @@
+100 Board-Size constant
+Board-Size Board []byte
+
+101 Buffer-Size constant
+Buffer-Size Buffer []byte
+
+Print-Board fun
+	0 while dup Board-Size < do
+		dup Board + read8 if
+			dup Buffer + 42 write8
+		else
+			dup Buffer + 32 write8
+		end
+		1 +
+	end
+	Buffer Buffer-Size 1 - + 10 write8 # Add newline
+	Buffer-Size Buffer 1 1 syscall3 2drop # Print buffer to stdout
+end
+
+Board Board-Size 2 - + 1 write8
+0 while dup Board-Size 2 - < do
+	Print-Board
+
+	Board     read8 1 <<
+	Board 1 + read8 bit-or
+
+	1 while dup Board-Size 2 - < do
+		swap 1 << 7 bit-and
+		over Board + 1 + read8 bit-or
+		2dup 110 swap >> 1 bit-and
+		swap Board + swap write8
+		swap
+		1 +
+	end
+	2drop
+	1 +
+end
+drop
