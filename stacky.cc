@@ -247,11 +247,14 @@ auto parse(std::string_view const file, std::string_view const path, std::vector
 
 		if (ch == '"') {
 			word.kind = Word::Kind::String;
-			auto str_end = std::find(std::cbegin(file) + i + 1, std::cend(file), '"');
+			auto const str_end = std::adjacent_find(std::cbegin(file) + i + 1, std::cend(file), [](auto const& prev, auto const& current) {
+				return prev != '\\' && current == '\"';
+			});
+
 			if (str_end == std::cend(file))
 				error(word, "Missing terminating \" character");
 
-			word.sval = { std::cbegin(file) + i, str_end + 1 };
+			word.sval = { std::cbegin(file) + i, str_end + 2 };
 		} else {
 			auto const start = std::cbegin(file) + i;
 			auto const first_ws = std::find_if(start, std::cend(file), static_cast<int(*)(int)>(std::isspace));
@@ -479,7 +482,7 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	asm_file << "segment .rodata\n";
 	for (auto const& [key, value] : definitions) {
 		switch (value.word.kind) {
-		case Word::Kind::String: label(value) << "db " << value.word.sval << ", 0\n"; break;
+		case Word::Kind::String: label(value) << "db `" << value.word.sval.substr(1, value.word.sval.size() - 2) << "`, 0\n"; break;
 		default:
 			;
 		}

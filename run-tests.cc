@@ -4,6 +4,7 @@
 #include <regex>
 #include <source_location>
 #include <span>
+#include <functional>
 
 #include "errors.cc"
 #include "ipstream.hh"
@@ -13,10 +14,11 @@ using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 namespace rc = std::regex_constants;
 
-static bool quiet_mode       = false;
-static bool dot_compare_mode = false;
-static unsigned tests_count  = 0;
-static unsigned tests_passed = 0;
+static bool quiet_mode           = false;
+static bool dot_compare_mode     = false;
+static bool println_compare_mode = false;
+static unsigned tests_count      = 0;
+static unsigned tests_passed     = 0;
 
 template<typename It>
 requires std::is_same_v<std::iter_value_t<It>, char>
@@ -79,7 +81,9 @@ int main(int argc, char **argv)
 	}
 
 
-	auto dot_compare = std::regex("#\\s+dot\\s+compare\\s+", rc::optimize | rc::icase | rc::ECMAScript);
+	auto const dot_compare     = std::regex("#\\s+dot\\s+compare\\s+", rc::optimize | rc::icase | rc::ECMAScript);
+	auto const println_compare = std::regex("#\\s+println\\s+compare\\s+", rc::optimize | rc::icase | rc::ECMAScript);
+
 	for (auto entry : fs::recursive_directory_iterator(test_dir)) {
 		auto const& source_code_path = entry.path();
 		if (source_code_path.extension() != ".stacky")
@@ -109,7 +113,8 @@ int main(int argc, char **argv)
 		}
 
 		dot_compare_mode = std::regex_search(source, dot_compare);
-		assert_msg(dot_compare_mode, "Dot compare is currently only supported mode");
+		println_compare_mode = std::regex_search(source, println_compare);
+		assert_msg(dot_compare_mode ^ println_compare_mode, "Only dot or only println compare modes are currently supported");
 
 		run_command(quiet_mode, "./stacky ", source_code_path);
 
@@ -154,15 +159,23 @@ int main(int argc, char **argv)
 			}
 
 			failed = true;
-			auto const pit = std::find_if(program_it, program_end, (int(*)(int))std::isspace);
-			auto const oit = std::find_if(output_it, output_end, (int(*)(int))std::isspace);
-			auto const first_dot = find_nth(source_begin, source_end, program_it.line, '.');
-			auto const last_dot = find_nth(first_dot, source_end, pit.line - program_it.line - (*pit == '\n'), '.');
 
 			std::cout << "[FAIL] " << source_code_path << " diverges from provided expected output\n";
 
-			std::cout << "src:" << first_dot.line << ':' << first_dot.column << ": ";
-			print_in_context(source_begin, first_dot, last_dot, source_end);
+			auto const pit = std::find_if(program_it, program_end, (int(*)(int))std::isspace);
+			auto const oit = std::find_if(output_it, output_end, (int(*)(int))std::isspace);
+
+			if (dot_compare_mode) {
+				auto const first_dot = find_nth(source_begin, source_end, program_it.line, '.');
+				auto const last_dot = find_nth(first_dot, source_end, pit.line - program_it.line - (*pit == '\n'), '.');
+				std::cout << "src:" << first_dot.line << ':' << first_dot.column << ": ";
+				print_in_context(source_begin, first_dot, last_dot, source_end);
+			} else if (println_compare_mode) {
+				auto const first_print = search_nth(source_begin, source_end, program_it.line + 2, "println"sv);
+				auto const last_print = search_nth(first_print, source_end, pit.line - program_it.line - (*pit == '\n'), "println"sv);
+				std::cout << "src:" << first_print.line << ':' << first_print.column << ": ";
+				print_in_context(source_begin, first_print, last_print, source_end);
+			}
 
 			std::cout << "out:" << output_it.line << ':' << output_it.column << ": ";
 			print_in_context(output_begin, output_it, oit, output_end);

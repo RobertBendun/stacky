@@ -1,0 +1,7 @@
+# println compare
+println fun print nl end
+
+"hello, world!" println
+"hello, \"world\"" println
+"\thello, world" println
+"za\xc5\xbc\xc3\xb3\xc5\x82\xc4\x87 g\xc4\x99\xc5\x9bl\xc4\x85 ja\xc5\xba\xc5\x84" println

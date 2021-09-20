@@ -1,3 +1,5 @@
+#include <functional>
+
 constexpr auto count_args(auto const& ...args) noexcept -> unsigned
 {
 	return (((void)args, 1) + ...);
@@ -43,6 +45,19 @@ constexpr auto find_nth(It begin, It end, std::integral auto count, std::equalit
 	auto found = begin;
 	for (; count-- > 0; ++found)
 		if (auto const result = std::find(found, end, v); result != end)
+			found = result;
+		else
+			break;
+	return found;
+}
+
+template<typename It>
+constexpr auto search_nth(It begin, It end, std::integral auto count, auto const& needle) -> It
+{
+	auto found = begin;
+	auto const s = std::boyer_moore_searcher(needle.cbegin(), needle.cend());
+	for (; count-- > 0; found += needle.size())
+		if (auto const result = std::search(found, end, s); result != end)
 			found = result;
 		else
 			break;
