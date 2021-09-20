@@ -16,11 +16,11 @@ syn keyword stackyDefinitions constant fun
 syn match stackyDefinitions '\[\]byte'
 syn keyword stackyBlocks while if else end do
 
-syn keyword stackyOperators ! != * + - .  < << <= = > >= >>
+syn keyword stackyOperators ! != * + - .  < << <= = > >= >> &
 syn keyword stackyOperators and bit-and bit-or bit-xor div divmod mod or min max
 
 syn keyword stackyStack 2drop 2dup 2over 2swap over top tuck rot swap drop dup
-syn keyword stackyMemory write8 write16 write32 write64 read8 read16 read32 read64
+syn keyword stackyMemory write8 write16 write32 write64 read8 read16 read32 read64 call
 syn keyword stackyOS syscall0 syscall1 syscall2 syscall3 syscall4 syscall5 syscall6 print nl
 " Literals
 syn match stackyInteger '\<-\=[0-9]\+.\=\>'
