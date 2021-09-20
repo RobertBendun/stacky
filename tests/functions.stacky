@@ -1,0 +1,16 @@
+# dot compare
+add2 fun # (n -- 2 + n)
+	2 +
+end
+
+2 add2 .
+
+factorial fun # (n -- n!)
+	dup 1 > if
+		dup 1 - factorial *
+	else
+		drop 1
+	end
+end
+
+5 factorial .

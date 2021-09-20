@@ -25,6 +25,8 @@ namespace fs = std::filesystem;
 
 #define Label_Prefix "_stacky_instr_"
 #define Symbol_Prefix "_stacky_symbol_"
+#define Function_Prefix "_stacky_fun_"
+#define Function_Body_Prefix "_stacky_funinstr_"
 
 auto const& Asm_Footer = R"asm(
 	;; exit syscall
@@ -67,6 +69,7 @@ struct Word
 		Over,
 		Print_CString,
 		Push_Symbol,
+		Call_Symbol,
 		Rot,
 		Swap,
 		Tuck,
@@ -83,6 +86,7 @@ struct Word
 		// --- COMPILE TIME DEFINITIONS ---
 		Define_Byte_Array,
 		Define_Constant,
+		Define_Function,
 
 		// --- CONTROL FLOW ---
 		Do,
@@ -122,7 +126,8 @@ struct Word
 		Kind::Identifier,
 		Kind::Integer,
 		Kind::Push_Symbol,
-		Kind::String
+		Kind::String,
+		Kind::Call_Symbol
 	);
 
 	std::string_view file;
@@ -171,6 +176,7 @@ constexpr auto Words_To_Kinds = sorted_array_of_tuples(
 	std::tuple { "dup"sv,       Word::Kind::Dup },
 	std::tuple { "else"sv,      Word::Kind::Else },
 	std::tuple { "end"sv,       Word::Kind::End },
+	std::tuple { "fun"sv,       Word::Kind::Define_Function },
 	std::tuple { "if"sv,        Word::Kind::If },
 	std::tuple { "mod"sv,       Word::Kind::Mod },
 	std::tuple { "nl"sv,        Word::Kind::Newline },
@@ -282,7 +288,8 @@ struct Definition
 	{
 		Array,
 		Constant,
-		String
+		Function,
+		String,
 	};
 
 	Word word;
@@ -291,6 +298,8 @@ struct Definition
 
 	static inline unsigned definitions_count = 0;
 	unsigned id;
+
+	std::vector<Word> function_body = {};
 };
 
 using Definitions = std::unordered_map<std::string, Definition>;
@@ -300,6 +309,36 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 	for (unsigned i = 0; i < words.size(); ++i) {
 		auto &word = words[i];
 		switch (word.kind) {
+		case Word::Kind::Define_Function: {
+			ensure(i >= 1 && words[i-1].kind == Word::Kind::Identifier, word, "function shoud be preceeded by an identifier");
+			auto fname = words[i-1].sval;
+			auto &def = user_defined_words[fname] = {
+				word,
+				Definition::Kind::Function,
+				(uint64_t)-1,
+				Definition::definitions_count++
+			};
+
+			unsigned ends_count = 1, end_pos = 0;
+			for (; end_pos < words.size() && ends_count > 0; ++end_pos)
+				if (auto &other = words[end_pos]; other.kind == Word::Kind::If || other.kind == Word::Kind::While)
+					++ends_count;
+				else if (other.kind == Word::Kind::End)
+					--ends_count;
+
+			ensure(ends_count == 0, word, "fun without end");
+			for (unsigned j = 0; j < words.size(); ++j) {
+				auto &word = words[j];
+				if (word.kind == Word::Kind::Identifier && word.sval == fname) {
+					word.kind = Word::Kind::Call_Symbol;
+					word.ival = def.id;
+				}
+			}
+			def.function_body.assign(std::cbegin(words) + i + 1, std::cbegin(words) + end_pos - 1);
+			i -= 1;
+			words.erase(std::cbegin(words) + i, std::cbegin(words) + end_pos);
+
+		} break;
 		case Word::Kind::String: {
 			auto &def = user_defined_words[word.sval] = {
 				word,
@@ -318,7 +357,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 		} break;
 
 		case Word::Kind::Define_Constant: {
-			ensure(i >= 1, word,                                    "constant requires compile time integer");
+			ensure(i >= 2, word,                                    "constant requires compile time integer");
 			ensure(words[i-1].kind == Word::Kind::Identifier, word, "constant should be preceeded by an indentifier, e.g. `42 meaning-of-life constant`");
 			ensure(words[i-2].kind == Word::Kind::Integer, word,    "constant should be precedded by an integer, e.g. `42 meaning-of-life define-constant`");
 
@@ -390,6 +429,7 @@ auto crossreference(std::vector<Word> &words)
 			break;
 
 		case Word::Kind::End:
+			assert(!stack.empty());
 			switch (words[stack.top()].kind) {
 			case Word::Kind::If:
 			case Word::Kind::Else:
@@ -424,6 +464,8 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	static_assert(Word::Data_Announcing_Kinds == 2, "Data annoucment not implemented for some words");
 
 	asm_file << "segment .bss\n";
+	asm_file << "	_stacky_callstack: resq 1024\n";
+	asm_file << "	_stacky_callptr:   resq 1\n";
 	for (auto const& [key, value] : definitions) {
 		switch (value.word.kind) {
 		case Word::Kind::Define_Byte_Array: label(value) << "resb " << value.byte_size << '\n'; break;
@@ -442,8 +484,6 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 	}
 
 	asm_file << "segment .text\n" Stdlib_Functions;
-	asm_file << "global _start\n";
-	asm_file << "_start:\n";
 }
 
 #define Impl_Math(Op_Kind, Name, Implementation) \
@@ -475,6 +515,22 @@ auto asm_header(std::ostream &asm_file, Definitions &definitions)
 		asm_file << "	div rbx\n" End; \
 		break
 
+auto generate_instructions(
+		std::vector<Word> const& words,
+		std::ostream& asm_file,
+		Definitions &definitions,
+		std::unordered_set<std::string> &undefined_words,
+		std::string_view instr_prefix) -> void;
+
+auto emit_return(std::ostream& asm_file)
+{
+	asm_file << "	sub qword [_stacky_callptr], 1\n";
+	asm_file << "	mov rbx, [_stacky_callptr]\n";
+	asm_file << "	mov rax, [_stacky_callstack+rbx*8]\n";
+	asm_file << "	push rax\n";
+	asm_file << "	ret\n";
+}
+
 auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path, Definitions &definitions)
 {
 	std::unordered_set<std::string> undefined_words;
@@ -487,7 +543,41 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 
 	asm_header(asm_file, definitions);
 
-	auto const word_has_been_defined = [&](auto &word){
+	char buffer[sizeof(Function_Body_Prefix) + 20];
+	for (auto& [name, def] : definitions) {
+		if (def.kind != Definition::Kind::Function)
+			continue;
+
+		crossreference(def.function_body);
+		asm_file << ";; fun " << name << '\n';
+		asm_file << Function_Prefix << def.id << ":\n";
+		asm_file << "	pop rax\n";
+		asm_file << "	mov rbx, [_stacky_callptr]\n";
+		asm_file << "	mov [_stacky_callstack+rbx*8], rax\n";
+		asm_file << "	add qword [_stacky_callptr], 1\n";
+
+		std::sprintf(buffer, Function_Body_Prefix "%u_", def.id);
+		generate_instructions(def.function_body, asm_file, definitions, undefined_words, buffer);
+		asm_file << '\n';
+		emit_return(asm_file);
+	}
+
+	asm_file << "global _start\n";
+	asm_file << "_start:\n";
+	generate_instructions(words, asm_file, definitions, undefined_words, Label_Prefix);
+
+	asm_file << Asm_Footer;
+}
+
+auto generate_instructions(
+		std::vector<Word> const& words,
+		std::ostream& asm_file,
+		Definitions &definitions,
+		std::unordered_set<std::string> &undefined_words,
+		std::string_view instr_prefix) -> void
+{
+
+	auto const word_has_been_defined = [&](auto &word) {
 		if (!definitions.contains(word.sval) && !undefined_words.contains(word.sval)) {
 			error(word, "Word", std::quoted(word.sval), " has not been defined.");
 			undefined_words.insert(word.sval);
@@ -501,7 +591,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 	unsigned i = 0;
 	for (auto words_it = std::cbegin(words); words_it != std::cend(words); ++words_it, ++i) {
 		auto const& word = *words_it;
-		asm_file << Label_Prefix << i << ":\n";
+		asm_file << instr_prefix << i << ":\n";
 
 		switch (word.kind) {
 		case Word::Kind::String:
@@ -510,10 +600,16 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 
 		case Word::Kind::Define_Byte_Array:
 		case Word::Kind::Define_Constant:
+		case Word::Kind::Define_Function:
 			break;
 
 		case Word::Kind::Identifier:
 			word_has_been_defined(word);
+			break;
+
+		case Word::Kind::Call_Symbol:
+			asm_file << "	;; call " << word.sval << '\n';
+			asm_file << "	call " Function_Prefix << word.ival << '\n';
 			break;
 
 		case Word::Kind::Integer:
@@ -686,7 +782,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		case Word::Kind::Else:
 			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			asm_file << "	;; else\n";
-			asm_file << "	jmp " Label_Prefix << word.jump << '\n';
+			asm_file << "	jmp " << instr_prefix << word.jump << '\n';
 			break;
 
 		case Word::Kind::Do:
@@ -698,14 +794,14 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			asm_file << "	pop rax\n";
 			asm_file << "	test rax, rax\n";
-			asm_file << "	jz " Label_Prefix << word.jump << '\n';
+			asm_file << "	jz " << instr_prefix << word.jump << '\n';
 			break;
 
 		case Word::Kind::End:
 			asm_file << "	;; end\n";
 			assert_msg(word.jump != Word::Empty_Jump, "Call crossreference on words first");
 			if (i + 1 != word.jump)
-				asm_file << "	jmp " Label_Prefix << word.jump << '\n';
+				asm_file << "	jmp " << instr_prefix << word.jump << '\n';
 			break;
 
 		case Word::Kind::While:
@@ -742,7 +838,7 @@ auto generate_assembly(std::vector<Word> const& words, fs::path const& asm_path,
 		}
 	}
 
-	asm_file << Label_Prefix << words.size() << ":" << Asm_Footer;
+	asm_file << instr_prefix << words.size() << ":";
 }
 
 auto main(int argc, char **argv) -> int

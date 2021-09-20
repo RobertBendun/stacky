@@ -12,7 +12,7 @@ endif
 
 setlocal iskeyword=!,@,33-35,%,$,38-64,A-Z,91-96,a-z,123-126,128-255
 
-syn keyword stackyDefinitions constant
+syn keyword stackyDefinitions constant fun
 syn match stackyDefinitions '\[\]byte'
 syn keyword stackyBlocks while if else end do
 

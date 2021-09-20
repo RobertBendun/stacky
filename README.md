@@ -52,6 +52,20 @@ Comments starts with `#` and ends at `\n`. Only single-line comments are support
 end
 ```
 
+### Functions
+
+`<identifier> fun <code> end` - when identifier outside of definition execute `code`
+
+```
+factorial fun
+	dup 1 > if
+		dup 1 - factorial *
+	else
+		drop 1
+	end
+end
+```
+
 ### Supported operations
 
 - `!` - if top = 1 then push 0 else push 1
