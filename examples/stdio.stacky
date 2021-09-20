@@ -1,0 +1,34 @@
+1024               Stdout-Buffer-Size  constant
+Stdout-Buffer-Size Stdout-Buffer       []byte
+8                  Stdout-Buffer-Count []byte
+
+exit fun 0 60 syscall1 end
+
+flush fun
+	Stdout-Buffer-Count read64 Stdout-Buffer 1 1 syscall3
+	Stdout-Buffer-Count 0 write64
+end
+
+# Write buffered. Flushes on either filled buffer or '\n'
+write fun # ( cstr -- )
+	# s
+	while dup read8 0 != do
+		Stdout-Buffer-Count read64 dup 1 +
+		rot dup read8 10 = 2swap
+		dup Stdout-Buffer-Size >= 2swap swap rot or rot rot swap rot
+		if
+			swap Stdout-Buffer-Count swap write64
+			flush
+			2drop 0 1
+		end
+		Stdout-Buffer-Count swap write64
+		Stdout-Buffer + swap dup read8 rot swap write8
+		1 +
+	end
+	drop
+end
+
+"hello, world!\n" write
+"goodbye, world!\n" write
+
+flush
