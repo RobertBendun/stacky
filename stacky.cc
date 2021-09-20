@@ -338,6 +338,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words) -> 
 			i -= 1;
 			words.erase(std::cbegin(words) + i, std::cbegin(words) + end_pos);
 			define_words(def.function_body, user_defined_words);
+			i -= 1;
 		} break;
 		case Word::Kind::String: {
 			auto &def = user_defined_words[word.sval] = {
