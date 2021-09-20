@@ -304,7 +304,7 @@ struct Definition
 
 using Definitions = std::unordered_map<std::string, Definition>;
 
-auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
+auto define_words(std::vector<Word> &words, Definitions &user_defined_words) -> void
 {
 	for (unsigned i = 0; i < words.size(); ++i) {
 		auto &word = words[i];
@@ -337,7 +337,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words)
 			def.function_body.assign(std::cbegin(words) + i + 1, std::cbegin(words) + end_pos - 1);
 			i -= 1;
 			words.erase(std::cbegin(words) + i, std::cbegin(words) + end_pos);
-
+			define_words(def.function_body, user_defined_words);
 		} break;
 		case Word::Kind::String: {
 			auto &def = user_defined_words[word.sval] = {
@@ -440,6 +440,7 @@ auto crossreference(std::vector<Word> &words)
 			case Word::Kind::Do:
 				words[i].jump = words[stack.top()].jump;
 				words[stack.top()].jump = i + 1;
+				stack.pop();
 				break;
 			default:
 				error(word, "End can only close do and if blocks");
