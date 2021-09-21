@@ -9,6 +9,7 @@ stack-ops
 stacky
 run-tests
 stdlib-symbols.cc
+enum-names.cc
 *.zig
 *.asm
 *.out

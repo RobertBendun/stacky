@@ -17,11 +17,14 @@
 #include <vector>
 
 #include "errors.cc"
-#include "stdlib-symbols.cc"
 #include "utilities.cc"
 
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
+
+// GENERATED FILES
+#include "stdlib-symbols.cc"
+#include "enum-names.cc"
 
 #define Label_Prefix "_stacky_instr_"
 #define Symbol_Prefix "_stacky_symbol_"
