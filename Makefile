@@ -9,10 +9,10 @@ all: stacky run-tests $(Compiled_Examples)
 
 # ------------ COMPILER COMPILATION ------------
 
-stacky: stacky.cc utilities.cc errors.cc stdlib-symbols.cc stdlib.o enum-names.cc
+stacky: src/stacky.cc src/utilities.cc src/errors.cc src/stdlib-symbols.cc stdlib.o src/enum-names.cc
 	$(Compiler) $(Options) $< -o $@ -O3
 
-run-tests: run-tests.cc errors.cc utilities.cc ipstream.hh
+run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
 	$(Compiler) $(Options) $< -o $@ -O3
 
 stdlib.o: stdlib.cc
@@ -20,11 +20,11 @@ stdlib.o: stdlib.cc
 
 # ------------ C++ CODE GENERATION ------------
 
-stdlib-symbols.cc: stdlib-symbols.sh stdlib.cc
-	 ./stdlib-symbols.sh > stdlib-symbols.cc
+src/stdlib-symbols.cc: stdlib-symbols.sh stdlib.cc
+	 ./stdlib-symbols.sh > src/stdlib-symbols.cc
 
-enum-names.cc: enum2string.sh stacky.cc
-	./enum2string.sh stacky.cc > enum-names.cc
+src/enum-names.cc: enum2string.sh stacky.cc
+	./enum2string.sh src/stacky.cc > src/enum-names.cc
 
 # ------------ STACKY COMPILATION ------------
 
@@ -42,7 +42,7 @@ test: run-tests stacky stdlib.o
 clean:
 	rm -f stacky run-tests tests/*.asm tests/*.o examples/*.asm examples/*.o *.o *.asm
 	rm -f $(shell find tests examples -type f -executable -not -name "*.stacky" -print)
-	rm -f stdlib-symbols.cc enum-names.cc
+	rm -f src/stdlib-symbols.cc src/enum-names.cc
 
 .PHONY: stat
 stat:
