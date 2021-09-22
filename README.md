@@ -5,7 +5,12 @@
 ## Example
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
-```ruby
+```
+println fun
+	1 1 syscall3 
+	nl
+end
+
 5 hello-count constant
 hello-count hello []byte
 
@@ -15,8 +20,7 @@ hello-count hello []byte
 	1 +
 end
 
-hello 1 1 syscall3 # syscall write(1, hello, 5)
-nl
+hello println
 ```
 
 ## Makefile
