@@ -7,7 +7,7 @@ Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```
 println fun
-	1 1 syscall3 
+	1 1 syscall3
 	nl
 end
 
@@ -33,10 +33,11 @@ hello println
 - [NASM](https://nasm.us/)
 - [LD](https://linux.die.net/man/1/ld)
 - [GCC with C++ compiler](https://gcc.gnu.org/) for compiler and stdlib compilation
+- [Boost Program\_Options](https://www.boost.org/)
 
 For Arch-based users:
 ```shell
-pacman -S gcc binutils nasm
+pacman -S gcc binutils nasm boost
 ```
 
 ## Language reference
