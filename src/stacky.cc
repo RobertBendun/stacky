@@ -379,6 +379,7 @@ auto define_words(std::vector<Word> &words, Definitions &user_defined_words) -> 
 				if (other.kind == Word::Kind::String && other.sval == word.sval) {
 					other.kind = Word::Kind::Push_Symbol;
 					other.ival = def.id;
+					other.symbol_prefix = Symbol_Prefix;
 				}
 			}
 		} break;
