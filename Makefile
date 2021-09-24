@@ -23,7 +23,7 @@ stdlib.o: stdlib.cc
 src/stdlib-symbols.cc: stdlib-symbols.sh stdlib.cc
 	 ./stdlib-symbols.sh > src/stdlib-symbols.cc
 
-src/enum-names.cc: enum2string.sh stacky.cc
+src/enum-names.cc: enum2string.sh src/stacky.cc
 	./enum2string.sh src/stacky.cc > src/enum-names.cc
 
 # ------------ STACKY COMPILATION ------------
