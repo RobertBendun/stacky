@@ -15,7 +15,6 @@ void help(po::options_description const& desc)
 
 void parse_arguments(int argc, char **argv)
 {
-
 	po::options_description common("Common options");
 	common.add_options()
 		("help,h", "produce help message")
@@ -71,13 +70,11 @@ void parse_arguments(int argc, char **argv)
 
 	auto const& command = vm["command"].as<std::string>();
 
-	bool run_mode = false;
-
 	std::vector<std::string> opts = po::collect_unrecognized(parsed.options, po::include_positional);
 	opts.erase(opts.begin());
 
 	if (command == "run") {
-		run_mode = true;
+		compiler_arguments.run_mode = true;
 	} else if (command == "build") {
 		po::store(po::command_line_parser(opts).options(build).run(), vm);
 	} else {
@@ -90,9 +87,17 @@ void parse_arguments(int argc, char **argv)
 		exit(1);
 	}
 
-	auto const sources = vm["source-file"].as<std::vector<std::string>>();
+	compiler_arguments.source_files = vm["source-file"].as<std::vector<std::string>>();
 
-	for (auto const& source : sources) {
-		std::cout << '\t' << source << '\n';
+	if (vm.count("output-file")) {
+		compiler_arguments.executable = vm["output-file"].as<std::string>();
+		std::cout << "Output file: " << compiler_arguments.executable << '\n';
+	} else {
+		auto src_path = fs::path(compiler_arguments.source_files[0]);
+		compiler_arguments.executable = src_path.parent_path();
+		compiler_arguments.executable /= src_path.stem();
 	}
+
+	compiler_arguments.assembly = compiler_arguments.executable;
+	compiler_arguments.assembly += ".asm";
 }

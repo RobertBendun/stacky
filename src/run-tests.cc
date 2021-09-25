@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 		println_compare_mode = std::regex_search(source, println_compare);
 		assert_msg(dot_compare_mode ^ println_compare_mode, "Only dot or only println compare modes are currently supported");
 
-		run_command(quiet_mode, "./stacky ", source_code_path);
+		run_command(quiet_mode, "./stacky build ", source_code_path);
 
 		std::string output;
 		{

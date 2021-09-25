@@ -9,8 +9,8 @@ all: stacky run-tests $(Compiled_Examples)
 
 # ------------ COMPILER COMPILATION ------------
 
-stacky: src/stacky.cc src/utilities.cc src/errors.cc src/stdlib-symbols.cc stdlib.o src/enum-names.cc
-	$(Compiler) $(Options) $< -o $@ -O3
+stacky: src/stacky.cc src/utilities.cc src/errors.cc src/stdlib-symbols.cc stdlib.o src/enum-names.cc src/arguments.cc
+	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options
 
 run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
 	$(Compiler) $(Options) $< -o $@ -O3
@@ -29,7 +29,7 @@ src/enum-names.cc: enum2string.sh src/stacky.cc
 # ------------ STACKY COMPILATION ------------
 
 examples/%: examples/%.stacky stacky stdlib.o
-	./stacky $<
+	./stacky build $<
 
 
 .PHONY: test
