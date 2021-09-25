@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <set>
 #include <source_location>
 #include <span>
@@ -59,6 +60,7 @@ enum class Keyword_Kind
 	Else,
 	While,
 	Do,
+	Include,
 
 	// Definitions
 	Byte_Array,
@@ -96,6 +98,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "end"sv,       Keyword_Kind::End },
 	std::tuple { "fun"sv,       Keyword_Kind::Function },
 	std::tuple { "if"sv,        Keyword_Kind::If },
+	std::tuple { "include"sv,   Keyword_Kind::Include },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
@@ -308,6 +311,36 @@ auto main(int argc, char **argv) -> int
 
 	if (!compile)
 		return 1;
+
+	for (;;) {
+		auto maybe_include = parser::extract_include(tokens);
+		if (!maybe_include)
+			break;
+
+		auto [path, offset] = *maybe_include;
+
+		std::ifstream file_stream(path);
+		if (!file_stream) {
+			error("Source file ", path, " cannot be opened");
+			return 1;
+		}
+		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
+
+
+		std::vector<Token> included_file_tokens;
+		compile &= lex(file, path.string(), included_file_tokens);
+
+		auto const pos = tokens.begin() + offset;
+		tokens.erase(pos, pos + 2);
+
+		if (included_file_tokens.empty())
+			continue;
+
+		tokens.reserve(tokens.capacity() + included_file_tokens.size());
+		tokens.insert(tokens.begin() + offset,
+				std::make_move_iterator(included_file_tokens.begin()),
+				std::make_move_iterator(included_file_tokens.end()));
+	}
 
 	std::unordered_map<std::string, unsigned> strings;
 	parser::extract_strings(tokens, strings);

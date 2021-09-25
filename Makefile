@@ -9,7 +9,7 @@ all: stacky run-tests $(Compiled_Examples)
 
 # ------------ COMPILER COMPILATION ------------
 
-stacky: src/stacky.cc src/utilities.cc src/errors.cc src/stdlib-symbols.cc stdlib.o src/enum-names.cc src/arguments.cc
+stacky: src/stacky.cc src/utilities.cc src/errors.cc src/stdlib-symbols.cc stdlib.o src/enum-names.cc src/arguments.cc src/parser.cc src/lexer.cc
 	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options
 
 run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh

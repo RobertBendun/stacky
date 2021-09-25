@@ -19,6 +19,28 @@ namespace parser
 		}
 	}
 
+	auto extract_include(std::vector<Token> &tokens) -> std::optional<std::pair<fs::path, unsigned>>
+	{
+		for (auto i = 0u; i < tokens.size(); ++i) {
+			auto &token = tokens[i];
+			if (token.kind != Token::Kind::Keyword || token.kval != Keyword_Kind::Include) {
+				continue;
+			}
+
+			ensure(i >= 1, "Include requires path");
+			ensure(tokens[i-1].kind == Token::Kind::String, "Include requires path");
+
+			return std::optional {
+				std::pair<fs::path, unsigned> {
+					fs::path(token.location.file).parent_path()
+						/ std::string_view(tokens[i-1].sval).substr(1, tokens[i-1].sval.size() - 2),
+					i-1
+				}
+			};
+		}
+		return std::nullopt;
+	}
+
 	auto register_definitions(std::vector<Token> const& tokens, Words &words)
 	{
 		for (unsigned i = 0; i < tokens.size(); ++i) {
@@ -27,6 +49,7 @@ namespace parser
 				continue;
 
 			switch (token.kval) {
+			case Keyword_Kind::Include:
 			case Keyword_Kind::End:
 			case Keyword_Kind::If:
 			case Keyword_Kind::Else:
@@ -239,6 +262,7 @@ namespace parser
 						}
 						break;
 
+						case Keyword_Kind::Include: break; // all includes should be eliminated by now
 						case Keyword_Kind::Byte_Array:  i -= 2; break;
 						case Keyword_Kind::Constant:    i -= 2; break;
 						case Keyword_Kind::Function:    i -= 1; break;
