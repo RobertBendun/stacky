@@ -1,12 +1,12 @@
 # dot compare
-1 b1 []byte
+b1 1 []byte
 b1 511 write8 b1 read8 .
 
-2 b2 []byte
+b2 2 []byte
 b2 dup 131071 write16 read16 .
 
-4 b3 []byte
+b3 4 []byte
 b3 dup 8589934591 write32 read32 .
 
-8 b4 []byte
+b4 8 []byte
 b4 dup 18446744073709551615 write64 read64 .

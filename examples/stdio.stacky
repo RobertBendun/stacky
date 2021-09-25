@@ -1,6 +1,6 @@
-1024               Stdout-Buffer-Size  constant
-Stdout-Buffer-Size Stdout-Buffer       []byte
-8                  Stdout-Buffer-Count []byte
+Stdout-Buffer-Size  1024               constant
+Stdout-Buffer       Stdout-Buffer-Size []byte
+Stdout-Buffer-Count 8                  []byte
 
 exit fun 0 60 syscall1 end
 

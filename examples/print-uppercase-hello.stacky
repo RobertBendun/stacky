@@ -1,5 +1,5 @@
-5 hello-count constant
-hello-count hello []byte
+hello-count 5 constant
+hello hello-count []byte
 
 0 while dup hello-count < do
 	dup dup "hello" + read8 32 -

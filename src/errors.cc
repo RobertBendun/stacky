@@ -1,8 +1,13 @@
 template<typename Location>
-concept Locationable = requires(Location const& loc) {
+concept Locationable = requires (Location const& loc) {
 	{ loc.file }   -> std::convertible_to<std::string_view>;
 	{ loc.line }   -> std::convertible_to<unsigned>;
 	{ loc.column } -> std::convertible_to<unsigned>;
+};
+
+template<typename Struct>
+concept Has_Location_Field = requires (Struct const& s) {
+	{ s.location } -> Locationable;
 };
 
 enum class Report
@@ -18,6 +23,9 @@ static bool Compilation_Failed = false;
 inline void report(Report report, auto const& ...message)
 {
 	auto& out = report == Report::Info ? std::cout : std::cerr;
+
+	std::cout << std::flush;
+	std::cerr << std::flush;
 	switch (report) {
 	case Report::Command:      out << "[CMD] ";          break;
 	case Report::Compiler_Bug: out << "[COMPILER BUG] "; break;
@@ -36,6 +44,11 @@ inline void report(Report report, auto const& ...message)
 inline void report(Report r, Locationable auto const& loc, auto const& ...message)
 {
 	report(r, loc.file, ':', loc.line, ':', loc.column, ": ", message...);
+}
+
+inline void report(Report r, Has_Location_Field auto const& s, auto const& ...message)
+{
+	report(r, s.location, message...);
 }
 
 inline void error(auto const& ...args)
