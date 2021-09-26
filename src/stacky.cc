@@ -64,7 +64,7 @@ enum class Keyword_Kind
 	Include,
 
 	// Definitions
-	Byte_Array,
+	Array,
 	Constant,
 	Function,
 
@@ -92,7 +92,11 @@ struct Token
 };
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
-	std::tuple { "[]byte"sv,    Keyword_Kind::Byte_Array },
+	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
+	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
+	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
+	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },
 	std::tuple { "else"sv,      Keyword_Kind::Else },
@@ -103,7 +107,6 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
-static_assert(String_To_Keyword.size() == static_cast<size_t>(Keyword_Kind::Last) + 1, "Exhaustive definition of String_To_Keyword. All kinds must be in that list");
 
 enum class Intrinsic_Kind
 {

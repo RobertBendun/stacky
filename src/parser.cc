@@ -76,9 +76,9 @@ namespace parser
 				}
 				break;
 
-			case Keyword_Kind::Byte_Array:
+			case Keyword_Kind::Array:
 				{
-					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, "[]byte should be preceeded by an identifier");
+					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, token.sval, " should be preceeded by an identifier");
 
 					unsigned size = 0;
 					switch (auto &t = tokens[i-1]; t.kind) {
@@ -92,7 +92,18 @@ namespace parser
 						}
 						[[fallthrough]];
 					default:
-						error(token, "[]byte should be preceeded by an integer");
+						error(token, token.sval, " should be preceeded by an integer");
+					}
+
+					switch (token.sval[3]) {
+					case 'y':
+					case '8': size *= 1; break;
+					case '1': size *= 2; break;
+					case '3': size *= 4; break;
+					case 's':
+					case '6': size *= 8; break;
+					default:
+						assert(false);
 					}
 
 					auto &word     = words[tokens[i-2].sval];
@@ -261,9 +272,9 @@ namespace parser
 						break;
 
 						case Keyword_Kind::Include: break; // all includes should be eliminated by now
-						case Keyword_Kind::Byte_Array:  i -= 2; break;
-						case Keyword_Kind::Constant:    i -= 2; break;
-						case Keyword_Kind::Function:    i -= 1; break;
+						case Keyword_Kind::Array:    i -= 2; break;
+						case Keyword_Kind::Constant: i -= 2; break;
+						case Keyword_Kind::Function: i -= 1; break;
 
 						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do);     break;
 						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else);   break;

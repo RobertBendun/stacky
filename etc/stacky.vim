@@ -16,6 +16,10 @@ syn keyword stackyIncludes include
 
 syn keyword stackyDefinitions constant fun
 syn match stackyDefinitions '\[\]byte'
+syn match stackyDefinitions '\[\]u8'
+syn match stackyDefinitions '\[\]u16'
+syn match stackyDefinitions '\[\]u32'
+syn match stackyDefinitions '\[\]u64'
 syn keyword stackyBlocks while if else end do
 
 syn keyword stackyOperators ! != * + - .  < << <= = > >= >> &
