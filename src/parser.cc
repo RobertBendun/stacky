@@ -19,7 +19,7 @@ namespace parser
 		}
 	}
 
-	auto extract_include(std::vector<Token> &tokens) -> std::optional<std::pair<fs::path, unsigned>>
+	auto extract_include(std::vector<Token> &tokens) -> std::optional<std::tuple<fs::path, fs::path, unsigned>>
 	{
 		for (auto i = 0u; i < tokens.size(); ++i) {
 			auto &token = tokens[i];
@@ -30,13 +30,11 @@ namespace parser
 			ensure(i >= 1, "Include requires path");
 			ensure(tokens[i-1].kind == Token::Kind::String, "Include requires path");
 
-			return std::optional {
-				std::pair<fs::path, unsigned> {
-					fs::path(token.location.file).parent_path()
-						/ std::string_view(tokens[i-1].sval).substr(1, tokens[i-1].sval.size() - 2),
-					i-1
-				}
-			};
+			return {{
+				fs::path(token.location.file).parent_path(),
+				std::string_view(tokens[i-1].sval).substr(1, tokens[i-1].sval.size() - 2),
+				i-1
+			}};
 		}
 		return std::nullopt;
 	}

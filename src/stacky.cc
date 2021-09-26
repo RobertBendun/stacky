@@ -36,8 +36,9 @@ namespace fs = std::filesystem;
 
 struct Arguments
 {
-	std::vector<std::string> include_search_paths;
+	std::vector<fs::path> include_search_paths;
 	std::vector<std::string> source_files;
+	fs::path compiler;
 	fs::path executable;
 	fs::path assembly;
 
@@ -291,6 +292,28 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "write8"sv,    Intrinsic_Kind::Write8);
 }
 
+auto search_include_path(fs::path includer_path, fs::path include_path) -> std::optional<fs::path>
+{
+	if (auto local = includer_path / include_path; fs::exists(local) && !fs::is_directory(local)) {
+		return { local };
+	} else {
+		local += ".stacky";
+		if (fs::exists(local) && !fs::is_directory(local))
+			return { local };
+	}
+
+	for (auto const& parent : compiler_arguments.include_search_paths)
+		if (auto p = parent / include_path; fs::exists(p) && !fs::is_directory(p))
+			return { p };
+		else {
+			p += ".stacky";
+			if (fs::exists(p) && !fs::is_directory(p))
+				return { p };
+		}
+
+	return std::nullopt;
+}
+
 auto main(int argc, char **argv) -> int
 {
 	parse_arguments(argc, argv);
@@ -317,7 +340,14 @@ auto main(int argc, char **argv) -> int
 		if (!maybe_include)
 			break;
 
-		auto [path, offset] = *maybe_include;
+		auto [includer_path, included_path, offset] = *maybe_include;
+
+		auto maybe_included = search_include_path(includer_path, included_path);
+
+		if (!maybe_included)
+			error("Cannot find ", included_path);
+
+		auto path = *std::move(maybe_included);
 
 		std::ifstream file_stream(path);
 		if (!file_stream) {

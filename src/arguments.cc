@@ -100,4 +100,7 @@ void parse_arguments(int argc, char **argv)
 
 	compiler_arguments.assembly = compiler_arguments.executable;
 	compiler_arguments.assembly += ".asm";
+
+	compiler_arguments.compiler = fs::canonical("/proc/self/exe");
+	compiler_arguments.include_search_paths.push_back(compiler_arguments.compiler.parent_path() / "std");
 }
