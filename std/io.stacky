@@ -1,0 +1,8 @@
+"posix" include
+
+println fun
+	dup
+	dup while dup read8 0 != do 1 + end swap - # strlen
+	swap stdout SYS_write syscall3 # Print string
+	10 top 1 swap stdout SYS_write syscall3 # Print newline
+end

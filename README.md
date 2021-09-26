@@ -6,10 +6,7 @@
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```
-println fun
-	1 1 syscall3
-	nl
-end
+"io" include
 
 5 hello-count constant
 hello-count hello []byte
