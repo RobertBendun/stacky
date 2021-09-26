@@ -2,6 +2,9 @@ stdin  0 constant
 stdout 1 constant
 stderr 2 constant
 
+CLOCK_REALTIME  0 constant
+CLOCK_MONOTONIC 1 constant
+
 SYS_read                     0     constant
 SYS_write                    1     constant
 SYS_open                     2     constant

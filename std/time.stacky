@@ -1,0 +1,52 @@
+"posix" include
+
+now fun
+	0 SYS_time syscall1
+end
+
+era 8 []byte
+
+# Translated to Stacky from
+# http://howardhinnant.github.io/date_algorithms.html
+date fun
+	60 div                 # drop seconds
+	dup 60 mod swap 60 div # get minutes
+	dup 24 mod swap 24 div # get hours
+
+	719468 + # shift epoch from 1970-01-01 to 0000-03-01
+	dup 146097 div era over write64    # era
+	146097 * - # doe
+
+	dup # yoe
+		over 1460 div -
+		over 36524 div +
+		over 146096 div -
+		365 div
+		dup era read64 400 * +
+		swap rot
+
+	# doy
+	swap dup  365 * over 4 div + over 100 div -
+		rot swap - swap drop
+
+	# mp
+	dup 5 * 2 + 153 div
+
+	# d
+	2dup 153 * 2 + 5 div - 1 +
+	rot drop swap
+
+	# m
+	dup 10 < if 3 + else 9 - end
+	rot swap dup 2 <= + swap
+end
+
++minutes fun 60  * + end
++hours fun 3600  * + end
++days fun 86400  * + end
++week fun 604800 * + end
+
+-minutes fun 60  * - end
+-hours fun 3600  * - end
+-days fun 86400  * - end
+-week fun 604800 * - end
