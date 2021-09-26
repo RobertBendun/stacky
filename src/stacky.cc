@@ -127,6 +127,8 @@ enum class Intrinsic_Kind
 		Mod,
 		Mul,
 		Not_Equal,
+		Random32,
+		Random64,
 		Right_Shift,
 		Subtract,
 
@@ -238,6 +240,8 @@ void register_intrinsics(Words &words)
 {
 	words.reserve(words.size() + static_cast<int>(Intrinsic_Kind::Last) + 1);
 
+	register_intrinsic(words, "random32"sv,  Intrinsic_Kind::Random32);
+	register_intrinsic(words, "random64"sv,  Intrinsic_Kind::Random64);
 	register_intrinsic(words, "!"sv,         Intrinsic_Kind::Boolean_Negate);
 	register_intrinsic(words, "!="sv,        Intrinsic_Kind::Not_Equal);
 	register_intrinsic(words, "*"sv,         Intrinsic_Kind::Mul);

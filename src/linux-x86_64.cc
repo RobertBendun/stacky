@@ -69,6 +69,19 @@ namespace linux::x86_64 {
 
 		assert(op.kind == Operation::Kind::Intrinsic);
 		switch (op.intrinsic) {
+		case Intrinsic_Kind::Random32:
+			asm_file << "	;; random32\n";
+			asm_file << "	xor rax, rax\n";
+			asm_file << "	rdrand eax\n";
+			asm_file << "	push rax\n";
+			break;
+
+		case Intrinsic_Kind::Random64:
+			asm_file << "	;; random64\n";
+			asm_file << "	rdrand rax\n";
+			asm_file << "	push rax\n";
+			break;
+
 		case Intrinsic_Kind::Call:
 			asm_file << "	;; stack call\n";
 			asm_file << "	pop rax\n";
