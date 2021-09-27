@@ -1,8 +1,47 @@
-"posix" include
+"posix.stacky"  include
+"limits.stacky" include
+
+nl fun
+	Ascii_Newline top 1 swap stdout SYS_write syscall3
+end
 
 println fun
 	dup
 	dup while dup read8 0 != do 1 + end swap - # strlen
 	swap stdout SYS_write syscall3 # Print string
 	10 top 1 swap stdout SYS_write syscall3 # Print newline
+end
+
+digits10 fun
+	1 swap 1
+	while do
+		dup 10 <    if drop     0 else
+		dup 100 <   if drop 1 + 0 else
+		dup 1000 <  if drop 2 + 0 else
+		dup 10000 < if drop 3 + 0 else
+			10000 div swap 4 + swap 1
+		end end end end
+	end
+end
+
+Print_Buffer Max_Digits10 []byte
+
+Ascii_0       48 constant
+Ascii_Newline 10 constant
+
+
+. fun
+	dup digits10 tuck 1 - swap
+	while dup 10 >= do
+		over swap
+		10 divmod
+		swap rot
+		Print_Buffer + swap Ascii_0 + write8
+		swap 1 -
+		swap
+	end
+	Ascii_0 + Print_Buffer swap write8
+	drop
+	Print_Buffer stdout SYS_write syscall3
+	nl
 end
