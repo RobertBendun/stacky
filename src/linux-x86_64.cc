@@ -252,19 +252,10 @@ namespace linux::x86_64 {
 			asm_file << "	call _stacky_newline\n";
 			break;
 
-		case Intrinsic_Kind::Syscall0:
-		case Intrinsic_Kind::Syscall1:
-		case Intrinsic_Kind::Syscall2:
-		case Intrinsic_Kind::Syscall3:
-		case Intrinsic_Kind::Syscall4:
-		case Intrinsic_Kind::Syscall5:
-		case Intrinsic_Kind::Syscall6:
+		case Intrinsic_Kind::Syscall:
 			{
-				static_assert(linear(1,
-							Intrinsic_Kind::Syscall0, Intrinsic_Kind::Syscall1, Intrinsic_Kind::Syscall2, Intrinsic_Kind::Syscall3,
-							Intrinsic_Kind::Syscall4, Intrinsic_Kind::Syscall5, Intrinsic_Kind::Syscall6));
-
-				unsigned const syscall_count = unsigned(op.intrinsic) - unsigned(Intrinsic_Kind::Syscall0);
+				assert(op.token.sval[7] >= '0' && op.token.sval[7] <= '6');
+				unsigned const syscall_count = op.token.sval[7] - '0';
 				static char const* regs[] = { "rax", "rdi", "rsi", "rdx", "r10", "r8", "r9" };
 
 				asm_file << "	;; syscall" << syscall_count << '\n';

@@ -163,15 +163,9 @@ enum class Intrinsic_Kind
 		// --- STDLIB, OS ---
 		Newline,
 		Print,
-		Syscall0,
-		Syscall1,
-		Syscall2,
-		Syscall3,
-		Syscall4,
-		Syscall5,
-		Syscall6,
+		Syscall,
 
-		Last = Syscall6,
+		Last = Syscall,
 };
 
 struct Operation
@@ -284,13 +278,13 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "read8"sv,     Intrinsic_Kind::Read8);
 	register_intrinsic(words, "rot"sv,       Intrinsic_Kind::Rot);
 	register_intrinsic(words, "swap"sv,      Intrinsic_Kind::Swap);
-	register_intrinsic(words, "syscall0"sv,  Intrinsic_Kind::Syscall0);
-	register_intrinsic(words, "syscall1"sv,  Intrinsic_Kind::Syscall1);
-	register_intrinsic(words, "syscall2"sv,  Intrinsic_Kind::Syscall2);
-	register_intrinsic(words, "syscall3"sv,  Intrinsic_Kind::Syscall3);
-	register_intrinsic(words, "syscall4"sv,  Intrinsic_Kind::Syscall4);
-	register_intrinsic(words, "syscall5"sv,  Intrinsic_Kind::Syscall5);
-	register_intrinsic(words, "syscall6"sv,  Intrinsic_Kind::Syscall6);
+	register_intrinsic(words, "syscall0"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall1"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall2"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall3"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall4"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall5"sv,  Intrinsic_Kind::Syscall);
+	register_intrinsic(words, "syscall6"sv,  Intrinsic_Kind::Syscall);
 	register_intrinsic(words, "top"sv,       Intrinsic_Kind::Top);
 	register_intrinsic(words, "tuck"sv,      Intrinsic_Kind::Tuck);
 	register_intrinsic(words, "write16"sv,   Intrinsic_Kind::Write16);
@@ -301,22 +295,17 @@ void register_intrinsics(Words &words)
 
 auto search_include_path(fs::path includer_path, fs::path include_path) -> std::optional<fs::path>
 {
-	if (auto local = includer_path / include_path; fs::exists(local) && !fs::is_directory(local)) {
-		return { local };
-	} else {
-		local += ".stacky";
-		if (fs::exists(local) && !fs::is_directory(local))
+	if (include_path.has_parent_path()) {
+		if (auto local = includer_path / include_path; fs::exists(local) && !fs::is_directory(local)) {
 			return { local };
+		}
 	}
 
-	for (auto const& parent : compiler_arguments.include_search_paths)
-		if (auto p = parent / include_path; fs::exists(p) && !fs::is_directory(p))
+	for (auto const& parent : compiler_arguments.include_search_paths) {
+		if (auto p = parent / include_path; fs::exists(p) && !fs::is_directory(p)) {
 			return { p };
-		else {
-			p += ".stacky";
-			if (fs::exists(p) && !fs::is_directory(p))
-				return { p };
 		}
+	}
 
 	return std::nullopt;
 }
@@ -361,8 +350,8 @@ auto main(int argc, char **argv) -> int
 			error("Source file ", path, " cannot be opened");
 			return 1;
 		}
-		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
 
+		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
 
 		std::vector<Token> included_file_tokens;
 		compile &= lex(file, path.string(), included_file_tokens);

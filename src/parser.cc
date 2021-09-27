@@ -212,6 +212,7 @@ namespace parser
 						{
 							auto &op = body.emplace_back(Operation::Kind::Intrinsic);
 							op.intrinsic = word.intrinsic;
+							op.token = token;
 						}
 						break;
 					case Word::Kind::Integer:

@@ -41,7 +41,8 @@ test: run-tests stacky stdlib.o
 .PHONY: clean
 clean:
 	rm -f stacky run-tests tests/*.asm tests/*.o examples/*.asm examples/*.o *.o *.asm
-	rm -f $(shell find tests examples -type f -executable -not -name "*.stacky" -print)
+	rm -f std/*.asm std/*.o
+	rm -f $(shell find tests examples std -type f -executable -not -name "*.stacky" -print)
 	rm -f src/stdlib-symbols.cc src/enum-names.cc
 
 .PHONY: stat
