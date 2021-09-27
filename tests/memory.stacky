@@ -1,4 +1,6 @@
 # dot compare
+"io.stacky" include
+
 b1 1 []byte
 b1 511 write8 b1 read8 .
 

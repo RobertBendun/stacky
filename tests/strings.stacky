@@ -1,5 +1,5 @@
 # println compare
-println fun print nl end
+"io.stacky" include
 
 "hello, world!" println
 "hello, \"world\"" println

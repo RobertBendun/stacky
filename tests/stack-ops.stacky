@@ -1,4 +1,6 @@
 # dot compare
+"io.stacky" include
+
 2 1 drop .
 1 2 over . . .
 3 dup . .

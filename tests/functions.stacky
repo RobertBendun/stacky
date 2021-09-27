@@ -1,4 +1,6 @@
 # dot compare
+"io.stacky" include
+
 add2 fun # (n -- 2 + n)
 	2 +
 end

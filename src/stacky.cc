@@ -25,7 +25,6 @@ using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
 // GENERATED FILES
-#include "stdlib-symbols.cc"
 #include "enum-names.cc"
 
 #define Label_Prefix "_stacky_instr_"
@@ -139,7 +138,6 @@ enum class Intrinsic_Kind
 		Drop,
 		Dup,
 		Over,
-		Print_CString,
 		Rot,
 		Swap,
 		Tuck,
@@ -161,8 +159,6 @@ enum class Intrinsic_Kind
 		Call,
 
 		// --- STDLIB, OS ---
-		Newline,
-		Print,
 		Syscall,
 
 		Last = Syscall,
@@ -244,7 +240,6 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "*"sv,         Intrinsic_Kind::Mul);
 	register_intrinsic(words, "+"sv,         Intrinsic_Kind::Add);
 	register_intrinsic(words, "-"sv,         Intrinsic_Kind::Subtract);
-	register_intrinsic(words, "."sv,         Intrinsic_Kind::Print);
 	register_intrinsic(words, "2drop"sv,     Intrinsic_Kind::Two_Drop);
 	register_intrinsic(words, "2dup"sv,      Intrinsic_Kind::Two_Dup);
 	register_intrinsic(words, "2over"sv,     Intrinsic_Kind::Two_Over);
@@ -268,10 +263,8 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "max"sv,       Intrinsic_Kind::Max);
 	register_intrinsic(words, "min"sv,       Intrinsic_Kind::Min);
 	register_intrinsic(words, "mod"sv,       Intrinsic_Kind::Mod);
-	register_intrinsic(words, "nl"sv,        Intrinsic_Kind::Newline);
 	register_intrinsic(words, "or"sv,        Intrinsic_Kind::Boolean_Or);
 	register_intrinsic(words, "over"sv,      Intrinsic_Kind::Over);
-	register_intrinsic(words, "print"sv,     Intrinsic_Kind::Print_CString);
 	register_intrinsic(words, "read16"sv,    Intrinsic_Kind::Read16);
 	register_intrinsic(words, "read32"sv,    Intrinsic_Kind::Read32);
 	register_intrinsic(words, "read64"sv,    Intrinsic_Kind::Read64);
@@ -392,7 +385,7 @@ auto main(int argc, char **argv) -> int
 	obj_path += ".o";
 	{
 		std::stringstream ss;
-		ss << "ld -o " << compiler_arguments.executable << " " << obj_path << " stdlib.o";
+		ss << "ld -o " << compiler_arguments.executable << " " << obj_path;
 		system(ss.str().c_str());
 	}
 }

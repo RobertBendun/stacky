@@ -51,7 +51,7 @@ namespace linux::x86_64 {
 			asm_file << String_Prefix << value << ": db `" << std::string_view(key).substr(1, key.size() - 2) << "`, 0\n";
 		}
 
-		asm_file << "segment .text\n" Stdlib_Functions;
+		asm_file << "segment .text\n";
 	}
 
 	auto emit_return(std::ostream& asm_file)
@@ -86,12 +86,6 @@ namespace linux::x86_64 {
 			asm_file << "	;; stack call\n";
 			asm_file << "	pop rax\n";
 			asm_file << "	call rax\n";
-			break;
-
-		case Intrinsic_Kind::Print:
-			asm_file << "	;; print\n";
-			asm_file << "	pop rdi\n";
-			asm_file << "	call _stacky_print_u64\n";
 			break;
 
 		Impl_Math(Add,          "add",          "add rax, rbx\n");
@@ -239,17 +233,6 @@ namespace linux::x86_64 {
 				asm_file << "	mov [rax], " << Register_B_By_Size[offset] << "\n";
 
 			}
-			break;
-
-		case Intrinsic_Kind::Print_CString:
-			asm_file << "	;; print cstring\n";
-			asm_file << "	pop rdi\n";
-			asm_file << "	call _stacky_print_cstr\n";
-			break;
-
-		case Intrinsic_Kind::Newline:
-			asm_file << "	;; newline\n";
-			asm_file << "	call _stacky_newline\n";
 			break;
 
 		case Intrinsic_Kind::Syscall:

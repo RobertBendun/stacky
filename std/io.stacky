@@ -2,14 +2,14 @@
 "limits.stacky" include
 
 nl fun
-	Ascii_Newline top 1 swap stdout SYS_write syscall3
+	Ascii_Newline top 1 swap stdout SYS_write syscall3 drop drop
 end
 
 println fun
 	dup
 	dup while dup read8 0 != do 1 + end swap - # strlen
 	swap stdout SYS_write syscall3 # Print string
-	10 top 1 swap stdout SYS_write syscall3 # Print newline
+	nl
 end
 
 digits10 fun
@@ -42,6 +42,6 @@ Ascii_Newline 10 constant
 	end
 	Ascii_0 + Print_Buffer swap write8
 	drop
-	Print_Buffer stdout SYS_write syscall3
+	Print_Buffer stdout SYS_write syscall3 drop
 	nl
 end
