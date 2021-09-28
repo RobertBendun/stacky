@@ -16,6 +16,7 @@ enum class Report
 	Compiler_Bug,
 	Error,
 	Info,
+	Warning,
 };
 
 static bool Compilation_Failed = false;
@@ -31,9 +32,10 @@ inline void report(Report report, auto const& ...message)
 	case Report::Compiler_Bug: out << "[COMPILER BUG] "; break;
 	case Report::Error:        out << "[ERROR] ";        break;
 	case Report::Info:         out << "[INFO] ";         break;
+	case Report::Warning:      out << "[WARN] ";         break;
 	}
 
-	Compilation_Failed |= (report == Report::Compiler_Bug || report == Report::Compiler_Bug);
+	Compilation_Failed |= (report == Report::Compiler_Bug || report == Report::Error);
 
 	(out << ... << message) << '\n';
 
@@ -56,10 +58,28 @@ inline void error(auto const& ...args)
 	report(Report::Error, args...);
 }
 
+inline void error_fatal(auto const& ...args)
+{
+	report(Report::Error, args...);
+	exit(1);
+}
+
 inline void ensure(bool condition, auto const& ...args)
 {
 	if (condition) return;
 	report(Report::Error, args...);
+}
+
+inline void ensure_fatal(bool condition, auto const& ...args)
+{
+	if (condition) return;
+	report(Report::Error, args...);
+	exit(1);
+}
+
+inline void warning(auto const& ...args)
+{
+	report(Report::Warning, args...);
 }
 
 inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, auto const& ...args)

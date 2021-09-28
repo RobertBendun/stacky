@@ -41,6 +41,12 @@ namespace parser
 
 	auto register_definitions(std::vector<Token> const& tokens, Words &words)
 	{
+		auto const check_if_has_been_defined = [&](auto const& token, auto const& name) {
+			if (compiler_arguments.warn_redefinitions && words.contains(name)) {
+				warning(token, name, " has already been defined");
+			}
+		};
+
 		for (unsigned i = 0; i < tokens.size(); ++i) {
 			auto token = tokens[i];
 			if (token.kind != Token::Kind::Keyword)
@@ -59,6 +65,7 @@ namespace parser
 				{
 					ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Word, token, "Function should be preceeded by an identifier");
 					auto const& fname = tokens[i-1].sval;
+					check_if_has_been_defined(token, fname);
 					auto &word = words[fname];
 					word.kind = Word::Kind::Function;
 					word.id = Word::word_count++;
@@ -69,6 +76,8 @@ namespace parser
 				{
 					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, "constant must be preceeded by an identifier");
 					ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Integer, token, "constant must be preceeded by an integer");
+
+					check_if_has_been_defined(token, tokens[i-2].sval);
 					auto &word = words[tokens[i-2].sval];
 					word.kind  = Word::Kind::Integer;
 					word.id    = Word::word_count++;
@@ -103,9 +112,10 @@ namespace parser
 					case 's':
 					case '6': size *= 8; break;
 					default:
-						assert(false);
+						assert_msg(false, "unreachable");
 					}
 
+					check_if_has_been_defined(token, tokens[i-2].sval);
 					auto &word     = words[tokens[i-2].sval];
 					word.kind      = Word::Kind::Array;
 					word.byte_size = size;
@@ -124,6 +134,7 @@ namespace parser
 			auto &op = ops[i];
 			switch (op.kind) {
 			case Operation::Kind::Do:
+				ensure(!stack.empty() && ops[stack.top()].kind == Operation::Kind::While, op.token, "`do` without matching `while`");
 				op.jump = stack.top();
 				stack.pop();
 				stack.push(i);
@@ -136,6 +147,7 @@ namespace parser
 
 			case Operation::Kind::Else:
 				// TODO add ensure of if existance
+				ensure(!stack.empty() && ops[stack.top()].kind == Operation::Kind::If, op.token, "`else` without matching `if`");
 				ops[stack.top()].jump = i + 1;
 				stack.pop();
 				stack.push(i);
@@ -158,7 +170,7 @@ namespace parser
 						break;
 					default:
 						// TODO vvvvvvvvvvvvvvvvvvvvv
-						// error(op, "End can only close do and if blocks");
+						error(op.token, "End can only close `while..do` and `if` blocks");
 						return false;
 					}
 				}
@@ -166,6 +178,17 @@ namespace parser
 
 			default:
 				;
+			}
+		}
+
+		if (!stack.empty()) {
+			auto const& token = ops[stack.top()].token;
+			switch (token.kval) {
+				case Keyword_Kind::If:	error(token, "Expected matching `else` or `end` for this `if`"); break;
+				case Keyword_Kind::Else: 	error(token, "Expected matching `end` for this `else`"); break;
+				case Keyword_Kind::While: error(token, "Expected matching `do` for this `while`"); break;
+				case Keyword_Kind::Do: error(token, "Expected matching `end` for this `do`"); break;
+				default: ;
 			}
 		}
 
@@ -219,7 +242,7 @@ namespace parser
 			case Token::Kind::Word:
 				{
 					auto word_it = words.find(token.sval);
-					assert(word_it != std::end(words));
+					ensure(word_it != std::end(words), token, "Word `", token.sval, "` has not been defined yet");
 					switch (auto word = word_it->second; word.kind) {
 					case Word::Kind::Intrinsic:
 						{
@@ -259,7 +282,7 @@ namespace parser
 					case Keyword_Kind::End:
 						{
 							unsigned j, end_stack = 1;
-							assert(i >= 1);
+							ensure_fatal(i >= 1, token, "Unexpected `end`.");
 							for (j = i-1; j < tokens.size() && end_stack > 0; --j) {
 								if (auto &t = tokens[j]; t.kind == Token::Kind::Keyword)
 									switch (t.kval) {
@@ -272,7 +295,7 @@ namespace parser
 									}
 							}
 
-							assert(end_stack == 0);
+							ensure_fatal(end_stack == 0, token, "Unexpected `end`.");
 							++j;
 
 							if (tokens[j].kval == Keyword_Kind::Function) {
@@ -280,7 +303,7 @@ namespace parser
 								transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
 								i = j-1;
 							} else {
-								body.emplace_back(Operation::Kind::End);
+								body.emplace_back(Operation::Kind::End, token);
 							}
 						}
 						break;
@@ -290,10 +313,10 @@ namespace parser
 						case Keyword_Kind::Constant: i -= 2; break;
 						case Keyword_Kind::Function: i -= 1; break;
 
-						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do);     break;
-						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else);   break;
-						case Keyword_Kind::If:          body.emplace_back(Operation::Kind::If);     break;
-						case Keyword_Kind::While:       body.emplace_back(Operation::Kind::While);  break;
+						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do, token);     break;
+						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else, token);   break;
+						case Keyword_Kind::If:          body.emplace_back(Operation::Kind::If, token);     break;
+						case Keyword_Kind::While:       body.emplace_back(Operation::Kind::While, token);  break;
 					}
 				}
 				break;

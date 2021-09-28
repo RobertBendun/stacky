@@ -41,6 +41,8 @@ struct Arguments
 	fs::path executable;
 	fs::path assembly;
 
+	bool warn_redefinitions = true;
+
 	bool run_mode = false;
 };
 
@@ -335,14 +337,16 @@ auto main(int argc, char **argv) -> int
 
 		auto maybe_included = search_include_path(includer_path, included_path);
 
-		if (!maybe_included)
-			error("Cannot find ", included_path);
+		if (!maybe_included) {
+			error_fatal(tokens[offset + 1], "Cannot find file ", included_path);
+			continue;
+		}
 
 		auto path = *std::move(maybe_included);
 
 		std::ifstream file_stream(path);
 		if (!file_stream) {
-			error("Source file ", path, " cannot be opened");
+			error(tokens[offset + 1], "File ", path, " cannot be opened");
 			return 1;
 		}
 
@@ -372,6 +376,8 @@ auto main(int argc, char **argv) -> int
 
 	std::vector<Operation> main;
 	parser::transform_into_operations(tokens, main, words);
+	if (Compilation_Failed)
+		return 1;
 
 	linux::x86_64::generate_assembly(main, compiler_arguments.assembly, words, strings);
 	if (Compilation_Failed)
