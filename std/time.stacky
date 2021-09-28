@@ -1,14 +1,23 @@
 "posix.stacky" include
 
-now fun
+now fun # -- seconds
 	0 SYS_time syscall1
 end
+
+timespec 2 []u64
+
+# seconds
+sleep fun # seconds --
+	timespec swap write64
+	while timespec timespec SYS_nanosleep syscall2 0 < do end
+end
+
 
 era 8 []byte
 
 # Translated to Stacky from
 # http://howardhinnant.github.io/date_algorithms.html
-date fun
+date fun # seconds -- year month day hours minutes
 	60 div                 # drop seconds
 	dup 60 mod swap 60 div # get minutes
 	dup 24 mod swap 24 div # get hours
