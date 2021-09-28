@@ -53,9 +53,9 @@ end
 +minutes fun 60  * + end
 +hours fun 3600  * + end
 +days fun 86400  * + end
-+week fun 604800 * + end
++weeks fun 604800 * + end
 
 -minutes fun 60  * - end
 -hours fun 3600  * - end
 -days fun 86400  * - end
--week fun 604800 * - end
+-weeks fun 604800 * - end

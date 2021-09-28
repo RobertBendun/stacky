@@ -21,6 +21,40 @@ end
 Hello println
 ```
 
+## Language reference
+
+### Standard library
+
+#### io.stacky
+- `nl` - prints newline to stdout
+- `print` - `(pointer --)` - prints null terminated string to stdout
+- `println` - `(pointer --)` - prints null terminated string to stdout and after it newline
+- `.` - `(uint --)` - print unsigned integer to stdout with a newline at the end
+
+#### limits.stacky
+- `Max_Digits10` - `(-- uint)` - returns maximum number of decimal digits that unsigned integer may have
+
+#### time.stacky
+- `now` - `(-- seconds)` - returns number of seconds since [Unix time](https://en.wikipedia.org/wiki/Unix_time)
+- `sleep` - `(seconds --)` - sleeps given number of seconds
+- `date` - `(seconds -- year month day hours minutes)` - decomposes seconds since Unix time into human readable form
+- `+minutes` - `(minutes seconds -- seconds)` - adds minutes to seconds
+- `+hours` - `(hours seconds -- seconds)` - adds hours to seconds
+- `+days` - `(days seconds -- seconds)` - adds days to seconds
+- `+weeks` - `(weekds seconds -- seconds)` - adds weeks to seconds
+
+- `-minutes` - `(minutes seconds -- seconds)` - subtracts minutes from seconds
+- `-hours` - `(hours seconds -- seconds)` - subtracts hours from seconds
+- `-days` - `(days seconds -- seconds)` - subtracts days from seconds
+- `-weeks` - `(weekds seconds -- seconds)` - subtracts weeks from seconds
+
+#### posix.stacky
+
+Contains definition of constants related to POSIX compatible operating systems.
+- `SYS_<syscall>` - constants holding syscall numbers, like `SYS_exit` = `60`
+- `stdin`, `stdout`, `stderr`
+- `CLOCK_<type>` - definition of clocks constants for `clock_gettime` syscall
+
 ## Makefile
 - `make install-nvim` - installs Stacky's syntax highlighting for Neovim
 - `make stacky` - makes only compiler
