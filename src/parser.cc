@@ -186,6 +186,19 @@ namespace parser
 				}
 				break;
 
+			case Token::Kind::Char:
+				{
+					auto &op = body.emplace_back(Operation::Kind::Push_Int);
+					op.token = token;
+					op.ival = 0;
+
+					// TODO error if (token.sval.size() > 10)
+					for (unsigned i = 1; i < token.sval.size() - 1; ++i) {
+						op.ival |= token.sval[i] << 8 * (i-1);
+					}
+				}
+				break;
+
 			case Token::Kind::Integer:
 				{
 					auto &op = body.emplace_back(Operation::Kind::Push_Int);

@@ -36,14 +36,14 @@ auto lex(std::string_view const file, std::string_view const path, std::vector<T
 
 		auto &token = tokens.emplace_back(Location{path, column, line});
 
-		if (ch == '"') {
-			token.kind = Token::Kind::String;
-			auto const str_end = std::adjacent_find(std::cbegin(file) + i + 1, std::cend(file), [](auto const& prev, auto const& current) {
-				return prev != '\\' && current == '\"';
+		if (ch == '"' || ch == '\'') {
+			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;
+			auto const str_end = std::adjacent_find(std::cbegin(file) + i + 1, std::cend(file), [terminating = ch](auto const& prev, auto const& current) {
+				return prev != '\\' && current == terminating;
 			});
 
 			if (str_end == std::cend(file))
-				error(token, "Missing terminating \" character");
+				error(token, "Missing terminating ", ch, " character");
 
 			token.sval = { std::cbegin(file) + i, str_end + 2 };
 		} else {

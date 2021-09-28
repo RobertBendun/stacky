@@ -77,6 +77,7 @@ struct Token
 		Word,
 		Integer,
 		String,
+		Char,
 		Keyword,
 		Address_Of,
 	};
