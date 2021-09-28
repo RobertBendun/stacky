@@ -1,0 +1,12 @@
+"io.stacky" include
+
+N 1000 constant
+
+# s c
+0 0 while dup N < do
+	dup 3 mod 0 = if swap over + swap else
+	dup 5 mod 0 = if swap over + swap end end
+	1 +
+end drop
+
+.

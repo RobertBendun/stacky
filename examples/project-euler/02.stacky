@@ -1,0 +1,8 @@
+"io.stacky" include
+
+0 1 2 while dup 4000000 <= do
+	rot swap dup
+	2 mod 0 = if swap over + swap end
+	rot over +
+end 2drop
+.

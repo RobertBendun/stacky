@@ -1,0 +1,10 @@
+"io.stacky" include
+
+600851475143 2 while over 1 > do
+  2dup mod 0 = if
+    swap over div swap
+  else
+    1 +
+  end
+end
+.
