@@ -22,11 +22,11 @@ src/enum-names.cc: enum2string.sh src/stacky.cc
 
 # ------------ STACKY COMPILATION ------------
 
-examples/%: examples/%.stacky stacky stdlib.o
+examples/%: examples/%.stacky stacky
 	./stacky build $<
 
 .PHONY: test
-test: run-tests stacky stdlib.o
+test: run-tests stacky
 	./$<
 
 # ------------ UTILITIES ------------
