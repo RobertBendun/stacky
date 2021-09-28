@@ -23,6 +23,54 @@ Hello println
 
 ## Language reference
 
+### Control flow
+
+#### if ... else ... end
+
+Consumes top of the stack. If value was nonzero, executes if branch, otherwise else branch.
+```
+"io.stacky" include
+10 if "value is 10!" else "value is not 10 :c" end println
+```
+
+#### while ... do ... end
+
+While condition part (between `while` and `do`) is nonzero, executes repeatadly loop part (between `do` and `end`).
+
+```
+# Print numbers from 0 to 10
+"io.stacky" include
+
+0 while dup 11 = ! do
+	dup .
+	1 +
+end
+```
+
+### Functions
+
+`<name> fun <code> end` creates function with given name and code block.
+
+```
+"io.stacky" include
+
+say-hello fun "Hi, " print print "!" println end
+
+"Mark" say-hello # prints "Hi, Mark!"
+```
+
+#### Address of functions
+
+`&<name>` puts `<name>` address onto stack, for example: `&foo`
+
+#### Call operator
+
+`call` calls function pointed by address on top of the stack.
+
+```
+"Mark" &say-hello call
+```
+
 ### Standard library
 
 #### io.stacky
