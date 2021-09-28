@@ -281,6 +281,10 @@ namespace linux::x86_64 {
 				asm_file << "	mov rax, " << op.ival << '\n';
 				asm_file << "	push rax\n";
 				break;
+			case Operation::Kind::Return:
+				asm_file << "	;; return\n";
+				asm_file << "	jmp " << instr_prefix << ops.size() << '\n';
+				break;
 			case Operation::Kind::End:
 				asm_file << "	;; end\n";
 				if (i + 1 != op.jump)

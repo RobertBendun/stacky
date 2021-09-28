@@ -53,12 +53,13 @@ namespace parser
 				continue;
 
 			switch (token.kval) {
-			case Keyword_Kind::Include:
+			case Keyword_Kind::Do:
+			case Keyword_Kind::Else:
 			case Keyword_Kind::End:
 			case Keyword_Kind::If:
-			case Keyword_Kind::Else:
+			case Keyword_Kind::Include:
+			case Keyword_Kind::Return:
 			case Keyword_Kind::While:
-			case Keyword_Kind::Do:
 				break;
 
 			case Keyword_Kind::Function:
@@ -316,6 +317,7 @@ namespace parser
 						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do, token);     break;
 						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else, token);   break;
 						case Keyword_Kind::If:          body.emplace_back(Operation::Kind::If, token);     break;
+						case Keyword_Kind::Return:      body.emplace_back(Operation::Kind::Return, token); break;
 						case Keyword_Kind::While:       body.emplace_back(Operation::Kind::While, token);  break;
 					}
 				}

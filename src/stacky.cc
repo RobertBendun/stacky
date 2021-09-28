@@ -63,6 +63,7 @@ enum class Keyword_Kind
 	While,
 	Do,
 	Include,
+	Return,
 
 	// Definitions
 	Array,
@@ -95,10 +96,10 @@ struct Token
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
-	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u64"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
 	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },
@@ -107,6 +108,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "fun"sv,       Keyword_Kind::Function },
 	std::tuple { "if"sv,        Keyword_Kind::If },
 	std::tuple { "include"sv,   Keyword_Kind::Include },
+	std::tuple { "return"sv,    Keyword_Kind::Return },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
@@ -181,6 +183,7 @@ struct Operation
 		Else,
 		While,
 		Do,
+		Return,
 	};
 
 	Kind kind;
