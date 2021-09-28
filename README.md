@@ -73,6 +73,9 @@ say-hello fun "Hi, " print print "!" println end
 
 ### Standard library
 
+#### algorithm.stacky
+- `uniform32` - `(a b -- n)` returns random integer `n` in range `[a, b]`
+
 #### io.stacky
 - `nl` - prints newline to stdout
 - `print` - `(pointer --)` - prints null terminated string to stdout

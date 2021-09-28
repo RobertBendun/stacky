@@ -1,0 +1,10 @@
+"io.stacky" include
+
+# From https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+uniform32 fun
+	over swap
+	swap - 1 +  # remap from [a, b] to [0, N] where N = distance(a, b)
+	random32 * 32 >> +
+end
+
+10 100 uniform32 .
