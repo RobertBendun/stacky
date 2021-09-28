@@ -1,3 +1,5 @@
+"io.stacky" include
+
 printed 1 []byte
 1 while dup 100 = ! do
 	printed 1 write8

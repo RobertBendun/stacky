@@ -5,10 +5,14 @@ nl fun
 	Ascii_Newline top 1 swap stdout SYS_write syscall3 drop drop
 end
 
-println fun
+print fun
 	dup
 	dup while dup read8 0 != do 1 + end swap - # strlen
-	swap stdout SYS_write syscall3 # Print string
+	swap stdout SYS_write syscall3 drop # Print string
+end
+
+println fun
+	print
 	nl
 end
 

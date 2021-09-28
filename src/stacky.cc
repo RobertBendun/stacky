@@ -96,6 +96,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u64"sv,     Keyword_Kind::Array },
 	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },

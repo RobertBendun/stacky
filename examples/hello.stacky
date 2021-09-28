@@ -1,1 +1,3 @@
-"hello, world!\n" print
+"io.stacky" include
+
+"hello, world!" println

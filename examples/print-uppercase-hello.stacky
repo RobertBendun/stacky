@@ -1,11 +1,13 @@
-hello-count 5 constant
-hello hello-count []byte
+"io.stacky" include
 
-0 while dup hello-count < do
-	dup dup "hello" + read8 32 -
-	swap hello + swap write8
+Hello-Count 6 constant
+Hello Hello-Count []byte
+
+"hello"
+0 while dup Hello-Count 1 - < do
+	2dup + read8 32 -
+	over Hello + swap write8
 	1 +
 end
 
-hello 1 1 syscall3 # syscall write(1, hello, 5)
-nl
+Hello println

@@ -1,3 +1,5 @@
+"io.stacky" include
+
 Board-Size 100 constant
 Board Board-Size []byte
 
@@ -14,7 +16,7 @@ Print-Board fun
 		1 +
 	end
 	Buffer Buffer-Size 1 - + 10 write8 # Add newline
-	Buffer-Size Buffer 1 1 syscall3 2drop # Print buffer to stdout
+	Buffer-Size Buffer stdout SYS_write syscall3 2drop
 end
 
 Board Board-Size 2 - + 1 write8

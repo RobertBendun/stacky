@@ -4,11 +4,11 @@
 b1 1 []byte
 b1 511 write8 b1 read8 .
 
-b2 2 []byte
+b2 1 []u16
 b2 dup 131071 write16 read16 .
 
-b3 4 []byte
+b3 1 []u32
 b3 dup 8589934591 write32 read32 .
 
-b4 8 []byte
+b4 1 []u64
 b4 dup 18446744073709551615 write64 read64 .
