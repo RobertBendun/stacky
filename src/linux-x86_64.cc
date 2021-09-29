@@ -48,7 +48,11 @@ namespace linux::x86_64 {
 
 		asm_file << "segment .rodata\n";
 		for (auto const& [key, value] : strings) {
-			asm_file << String_Prefix << value << ": db `" << std::string_view(key).substr(1, key.size() - 2) << "`, 0\n";
+			asm_file << String_Prefix << value << ": db ";
+			for (auto c : key) {
+				asm_file << int(c) << ',';
+			}
+			asm_file << "0\n";
 		}
 
 		asm_file << "segment .text\n";

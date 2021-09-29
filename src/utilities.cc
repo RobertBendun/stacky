@@ -63,3 +63,15 @@ constexpr auto search_nth(It begin, It end, std::integral auto count, auto const
 			break;
 	return found;
 }
+
+template<typename F, typename B, typename... A>
+static decltype(auto) callv(F&& func, B&& def, A&&... args)
+{
+	if constexpr (std::is_invocable_r_v<B, F, A...>) {
+		return std::forward<F>(func)(std::forward<A>(args)...);
+	} else {
+		static_assert(std::is_void_v<std::invoke_result_t<F, A...>>);
+		std::forward<F>(func)(std::forward<A>(args)...);
+		return std::forward<B>(def);
+	}
+}

@@ -1,5 +1,28 @@
 namespace parser
 {
+	inline auto parse_stringlike(Token const& token, std::string_view sequence, auto&& accumulator)
+	{
+		bool next_escaped = false;
+		for (auto c : sequence) {
+			if (c == '\\') { next_escaped = true; continue; }
+			auto v = c;
+			if (next_escaped) {
+				switch (c) {
+				case '\\': v = '\\'; break;
+				case 'n':  v = '\n'; break;
+				case 'r':  v = '\r'; break;
+				case 't':  v = '\t'; break;
+				case '0':  v = '\0'; break;
+				default:
+					error(token, "Unrecognized escape sequence: '\\", c, "'");
+				}
+				next_escaped = false;
+			}
+			if (!callv(accumulator, true, v))
+				break;
+		}
+	}
+
 	auto extract_strings(std::vector<Token> &tokens, std::unordered_map<std::string, unsigned> &strings)
 	{
 		static unsigned next_string_id = 0;
@@ -11,7 +34,12 @@ namespace parser
 			// TODO insert based not on how string is written in source code
 			// but how it's on result basis. Strings like "Hi world" and "Hi\x20world"
 			// should resolve into equal pointers
-			if (auto [it, inserted] = strings.try_emplace(token.sval, next_string_id); inserted) {
+
+			std::string s;
+			s.reserve(token.sval.size());
+			parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2), [&s](char c) { s.push_back(c); });
+
+			if (auto [it, inserted] = strings.try_emplace(std::move(s), next_string_id); inserted) {
 				token.ival = next_string_id++;
 			} else {
 				token.ival = it->second;
@@ -216,10 +244,16 @@ namespace parser
 					op.token = token;
 					op.ival = 0;
 
-					// TODO error if (token.sval.size() > 10)
-					for (unsigned i = 1; i < token.sval.size() - 1; ++i) {
-						op.ival |= token.sval[i] << 8 * (i-1);
-					}
+					parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2),
+							[&token, value = &op.ival, offset = 0](char c) mutable {
+								*value |= c << 8 * offset++;
+								if (offset > 8) {
+									error(token, "Character literal cannot be longer then 8 bytes on this platform!");
+									return false;
+								}
+								return true;
+							}
+					);
 				}
 				break;
 
