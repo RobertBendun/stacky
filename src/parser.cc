@@ -3,18 +3,56 @@ namespace parser
 	inline auto parse_stringlike(Token const& token, std::string_view sequence, auto&& accumulator)
 	{
 		bool next_escaped = false;
-		for (auto c : sequence) {
-			if (c == '\\') { next_escaped = true; continue; }
-			auto v = c;
+		for (unsigned i = 0; i < sequence.size(); ++i) {
+			auto v = sequence[i];
+			if (v == '\\') { next_escaped = true; continue; }
 			if (next_escaped) {
-				switch (c) {
+				switch (v) {
+				case '0':  v = '\0'; break;
+				case '\"': v = '\"'; break;
+				case '\'': v = '\''; break;
 				case '\\': v = '\\'; break;
+				case 'e':  v = 27;   break;
 				case 'n':  v = '\n'; break;
 				case 'r':  v = '\r'; break;
 				case 't':  v = '\t'; break;
-				case '0':  v = '\0'; break;
+				case 'u':
+				case 'U':
+					{
+						auto const length = v == 'u' ? 4 : 8;
+
+						ensure(i + length < sequence.size(), token, "Unicode escape sequence must be exactly ", length, " digits long");
+
+						uint32_t rune = 0;
+						auto end = sequence.data() + i + length + 1;
+						auto const [ptr, ec] = std::from_chars(sequence.data() + i + 1, end, rune, 16);
+						ensure(ptr == end, token, "Found non-decimal digit inside unicode escape sequence!");
+
+						for (auto c : utf8::encode_rune(rune)) {
+							if (!callv(accumulator, true, c))
+									return;
+						}
+						i += length;
+						next_escaped = false;
+						continue;
+					}
+					break;
+				case 'x':
+					{
+						auto hex_value = 0u;
+						ensure(i + 2 < sequence.size(), token, "Hex escape sequences are always dwo digits long");
+						for (unsigned j = 0; j < 2; ++j) {
+							if (auto c = sequence[i + 1 + j]; c >= '0' && c <= '9') hex_value = (hex_value << (4*j)) | (c - '0');
+							else if (c >= 'a' && c <= 'f') hex_value = (hex_value << (4*j)) | (c - 'a' + 10);
+							else if (c >= 'A' && c <= 'F') hex_value = (hex_value << (4*j)) | (c - 'A' + 10);
+							else error(token, "Expected hexadecimal digit, found: ", c);
+						}
+						v = hex_value;
+						i += 2;
+					}
+					break;
 				default:
-					error(token, "Unrecognized escape sequence: '\\", c, "'");
+					error(token, "Unrecognized escape sequence: '\\", v, "'");
 				}
 				next_escaped = false;
 			}

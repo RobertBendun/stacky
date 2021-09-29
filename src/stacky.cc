@@ -224,6 +224,7 @@ struct Word
 
 using Words = std::unordered_map<std::string, Word>;
 
+#include "unicode.cc"
 #include "arguments.cc"
 #include "lexer.cc"
 #include "parser.cc"

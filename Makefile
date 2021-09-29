@@ -2,7 +2,7 @@ Examples=$(wildcard examples/**/*.stacky) $(wildcard examples/*.stacky)
 Compiled_Examples=$(basename $(Examples))
 
 Compiler=g++
-Options=-std=c++20 -Wall -Wextra -Werror=switch
+Options=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses
 
 .PHONY:
 all: stacky test $(Compiled_Examples)
