@@ -28,9 +28,15 @@ syn keyword stackyOperators and bit-and bit-or bit-xor div divmod mod or min max
 syn keyword stackyStack 2drop 2dup 2over 2swap over top tuck rot swap drop dup
 syn keyword stackyMemory write8 write16 write32 write64 read8 read16 read32 read64 call
 syn keyword stackyOS syscall0 syscall1 syscall2 syscall3 syscall4 syscall5 syscall6 random32 random64
+
 " Literals
 syn match stackyInteger '\<-\=[0-9]\+.\=\>'
-syn region stackyString start='"' end='"'
+
+syn match	stackySpecial	display contained "\\\(x\x\+\|\o\{1,3}\|.\|$\)"
+syn match	stackySpecial	display contained "\\\(u\x\{4}\|U\x\{8}\)"
+
+syn region stackyString		start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=stackySpecial,@Spell extend
+syn match	stackyCharacter	"'[^']*'" contains=stackySpecial
 
 " Comments
 syn match stackyDotCompare contained 'dot\s\+compare'
@@ -49,6 +55,8 @@ hi def link stackyOS Identifier
 hi def link stackyOperators Operator
 hi def link stackyWord Identifier
 hi def link stackyString String
+hi def link stackyCharacter Character
+hi def link stackySpecial SpecialChar
 hi def link stackyInteger Number
 hi def link stackyComment Comment
 hi def link stackyBlocks Statement
