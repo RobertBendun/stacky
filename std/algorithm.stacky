@@ -6,5 +6,3 @@ uniform32 fun
 	swap - 1 +  # remap from [a, b] to [0, N] where N = distance(a, b)
 	random32 * 32 >> +
 end
-
-10 100 uniform32 .

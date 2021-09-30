@@ -32,6 +32,7 @@ namespace fs = std::filesystem;
 #define String_Prefix "_stacky_string_"
 #define Function_Prefix "_stacky_fun_"
 #define Function_Body_Prefix "_stacky_funinstr_"
+#define Anonymous_Function_Prefix "_Stacky_anonymous_"
 
 struct Arguments
 {
@@ -106,6 +107,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "else"sv,      Keyword_Kind::Else },
 	std::tuple { "end"sv,       Keyword_Kind::End },
 	std::tuple { "fun"sv,       Keyword_Kind::Function },
+	std::tuple { "&fun"sv,      Keyword_Kind::Function },
 	std::tuple { "if"sv,        Keyword_Kind::If },
 	std::tuple { "include"sv,   Keyword_Kind::Include },
 	std::tuple { "return"sv,    Keyword_Kind::Return },

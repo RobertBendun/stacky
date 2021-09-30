@@ -105,7 +105,7 @@ namespace parser
 		return std::nullopt;
 	}
 
-	auto register_definitions(std::vector<Token> const& tokens, Words &words)
+	auto register_definitions(std::vector<Token>& tokens, Words &words)
 	{
 		auto const check_if_has_been_defined = [&](auto const& token, auto const& name) {
 			if (compiler_arguments.warn_redefinitions && words.contains(name)) {
@@ -114,7 +114,7 @@ namespace parser
 		};
 
 		for (unsigned i = 0; i < tokens.size(); ++i) {
-			auto token = tokens[i];
+			auto &token = tokens[i];
 			if (token.kind != Token::Kind::Keyword)
 				continue;
 
@@ -130,12 +130,20 @@ namespace parser
 
 			case Keyword_Kind::Function:
 				{
-					ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Word, token, "Function should be preceeded by an identifier");
-					auto const& fname = tokens[i-1].sval;
-					check_if_has_been_defined(token, fname);
-					auto &word = words[fname];
-					word.kind = Word::Kind::Function;
-					word.id = Word::word_count++;
+					static auto lambda_count = 0u;
+					if (token.sval[0] == '&') {
+						auto fname = Anonymous_Function_Prefix + std::to_string(token.ival = lambda_count++);
+						auto &word = words[fname];
+						word.kind = Word::Kind::Function;
+						word.id = Word::word_count++;
+					} else {
+						ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Word, token, "Function should be preceeded by an identifier");
+						auto const& fname = tokens[i-1].sval;
+						check_if_has_been_defined(token, fname);
+						auto &word = words[fname];
+						word.kind = Word::Kind::Function;
+						word.id = Word::word_count++;
+					}
 				}
 				break;
 
@@ -372,9 +380,20 @@ namespace parser
 							++j;
 
 							if (tokens[j].kval == Keyword_Kind::Function) {
-								auto &func = words.at(tokens[j-1].sval);
-								transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
-								i = j-1;
+								if (tokens[j].sval[0] == '&') {
+									auto &func = words.at(Anonymous_Function_Prefix + std::to_string(tokens[j].ival));
+									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
+									i = j;
+
+									auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
+									op.symbol_prefix = Function_Prefix;
+									op.ival = func.id;
+									op.token = token;
+								} else {
+									auto &func = words.at(tokens[j-1].sval);
+									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
+									i = j-1;
+								}
 							} else {
 								body.emplace_back(Operation::Kind::End, token);
 							}
@@ -384,7 +403,7 @@ namespace parser
 						case Keyword_Kind::Include: break; // all includes should be eliminated by now
 						case Keyword_Kind::Array:    i -= 2; break;
 						case Keyword_Kind::Constant: i -= 2; break;
-						case Keyword_Kind::Function: i -= 1; break;
+						case Keyword_Kind::Function: assert_msg(false, "unreachable"); break;
 
 						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do, token);     break;
 						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else, token);   break;
