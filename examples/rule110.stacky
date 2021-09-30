@@ -1,4 +1,4 @@
-"io.stacky" include
+"io" import
 
 Board-Size 100 constant
 Board Board-Size []byte

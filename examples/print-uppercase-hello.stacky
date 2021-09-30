@@ -1,4 +1,4 @@
-"io.stacky" include
+"io" import
 
 Hello-Count 6 constant
 Hello Hello-Count []byte

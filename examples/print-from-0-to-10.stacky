@@ -1,5 +1,5 @@
 # Print numbers from 0 to 10
-"io.stacky" include
+"io" import
 
 0 while dup 11 = ! do
 	dup .

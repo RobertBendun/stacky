@@ -1,4 +1,4 @@
-"io.stacky" include
+"io" import
 
 N 1000 constant
 

@@ -6,7 +6,7 @@
 Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```
-"io" include
+"io" import
 
 Hello-Count 6 constant
 Hello Hello-Count []byte
@@ -29,7 +29,7 @@ Hello println
 
 Consumes top of the stack. If value was nonzero, executes if branch, otherwise else branch.
 ```
-"io.stacky" include
+"io" import
 10 if "value is 10!" else "value is not 10 :c" end println
 ```
 
@@ -39,7 +39,7 @@ While condition part (between `while` and `do`) is nonzero, executes repeatadly 
 
 ```
 # Print numbers from 0 to 10
-"io.stacky" include
+"io" import
 
 0 while dup 11 = ! do
 	dup .
@@ -52,7 +52,7 @@ end
 `<name> fun <code> end` creates function with given name and code block.
 
 ```
-"io.stacky" include
+"io" import
 
 say-hello fun "Hi, " print print "!" println end
 
@@ -73,19 +73,19 @@ say-hello fun "Hi, " print print "!" println end
 
 ### Standard library
 
-#### algorithm.stacky
+#### algorithm
 - `uniform32` - `(a b -- n)` returns random integer `n` in range `[a, b]`
 
-#### io.stacky
+#### io
 - `nl` - prints newline to stdout
 - `print` - `(pointer --)` - prints null terminated string to stdout
 - `println` - `(pointer --)` - prints null terminated string to stdout and after it newline
 - `.` - `(uint --)` - print unsigned integer to stdout with a newline at the end
 
-#### limits.stacky
+#### limits
 - `Max_Digits10` - `(-- uint)` - returns maximum number of decimal digits that unsigned integer may have
 
-#### time.stacky
+#### time
 - `now` - `(-- seconds)` - returns number of seconds since [Unix time](https://en.wikipedia.org/wiki/Unix_time)
 - `sleep` - `(seconds --)` - sleeps given number of seconds
 - `date` - `(seconds -- year month day hours minutes)` - decomposes seconds since Unix time into human readable form
@@ -99,7 +99,7 @@ say-hello fun "Hi, " print print "!" println end
 - `-days` - `(days seconds -- seconds)` - subtracts days from seconds
 - `-weeks` - `(weekds seconds -- seconds)` - subtracts weeks from seconds
 
-#### posix.stacky
+#### posix
 
 Contains definition of constants related to POSIX compatible operating systems.
 - `SYS_<syscall>` - constants holding syscall numbers, like `SYS_exit` = `60`

@@ -1,4 +1,4 @@
-"io.stacky" include
+"io" import
 
 0 1 2 while dup 4000000 <= do
 	rot swap dup

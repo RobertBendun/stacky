@@ -85,18 +85,24 @@ namespace parser
 		}
 	}
 
-	auto extract_include(std::vector<Token> &tokens) -> std::optional<std::tuple<fs::path, fs::path, unsigned>>
+	auto extract_include_or_import(std::vector<Token> &tokens) -> std::optional<std::tuple<Keyword_Kind, fs::path, fs::path, unsigned>>
 	{
 		for (auto i = 0u; i < tokens.size(); ++i) {
 			auto &token = tokens[i];
-			if (token.kind != Token::Kind::Keyword || token.kval != Keyword_Kind::Include) {
+			if (token.kind != Token::Kind::Keyword || (token.kval != Keyword_Kind::Include && token.kval != Keyword_Kind::Import)) {
 				continue;
 			}
 
-			ensure(i >= 1, "Include requires path");
-			ensure(tokens[i-1].kind == Token::Kind::String, "Include requires path");
+			if (token.kval == Keyword_Kind::Include) {
+				ensure(i >= 1, "Include requires path");
+				ensure(tokens[i-1].kind == Token::Kind::String, "Include requires path");
+			} else {
+				ensure(i >= 1, "Import requires path");
+				ensure(tokens[i-1].kind == Token::Kind::String, "Import requires path");
+			}
 
 			return {{
+				token.kval,
 				fs::path(token.location.file).parent_path(),
 				std::string_view(tokens[i-1].sval).substr(1, tokens[i-1].sval.size() - 2),
 				i-1
@@ -124,6 +130,7 @@ namespace parser
 			case Keyword_Kind::End:
 			case Keyword_Kind::If:
 			case Keyword_Kind::Include:
+			case Keyword_Kind::Import:
 			case Keyword_Kind::Return:
 			case Keyword_Kind::While:
 				break;
@@ -400,7 +407,8 @@ namespace parser
 						}
 						break;
 
-						case Keyword_Kind::Include: break; // all includes should be eliminated by now
+						case Keyword_Kind::Import:
+						case Keyword_Kind::Include: assert_msg(false, "unreachable"); break; // all includes should be eliminated by now
 						case Keyword_Kind::Array:    i -= 2; break;
 						case Keyword_Kind::Constant: i -= 2; break;
 						case Keyword_Kind::Function: assert_msg(false, "unreachable"); break;

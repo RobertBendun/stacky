@@ -12,9 +12,9 @@ endif
 
 setlocal iskeyword=!,@,33-35,%,$,38-64,A-Z,91-96,a-z,123-126,128-255
 
-syn keyword stackyIncludes include
+syn keyword stackyIncludes include import
 
-syn keyword stackyDefinitions constant fun
+syn keyword stackyDefinitions constant fun &fun
 syn match stackyDefinitions '\[\]byte'
 syn match stackyDefinitions '\[\]u8'
 syn match stackyDefinitions '\[\]u16'

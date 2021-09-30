@@ -1,5 +1,3 @@
-"io.stacky" include
-
 # From https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
 uniform32 fun
 	over swap

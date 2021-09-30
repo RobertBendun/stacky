@@ -64,6 +64,7 @@ enum class Keyword_Kind
 	While,
 	Do,
 	Include,
+	Import,
 	Return,
 
 	// Definitions
@@ -110,6 +111,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "&fun"sv,      Keyword_Kind::Function },
 	std::tuple { "if"sv,        Keyword_Kind::If },
 	std::tuple { "include"sv,   Keyword_Kind::Include },
+	std::tuple { "import"sv,    Keyword_Kind::Import },
 	std::tuple { "return"sv,    Keyword_Kind::Return },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
@@ -382,13 +384,20 @@ auto main(int argc, char **argv) -> int
 	if (!compile)
 		return 1;
 
+
+	std::unordered_set<std::string> already_imported;
+
 	for (;;) {
-		auto maybe_include = parser::extract_include(tokens);
+		auto maybe_include = parser::extract_include_or_import(tokens);
 		if (!maybe_include)
 			break;
 
-		auto [includer_path, included_path, offset] = *maybe_include;
+		auto [kind, includer_path, included_path, offset] = *maybe_include;
+		auto const pos = tokens.begin() + offset;
 
+		if (kind == Keyword_Kind::Import) {
+			included_path += ".stacky";
+		}
 		auto maybe_included = search_include_path(includer_path, included_path);
 
 		if (!maybe_included) {
@@ -397,6 +406,15 @@ auto main(int argc, char **argv) -> int
 		}
 
 		auto path = *std::move(maybe_included);
+
+		if (kind == Keyword_Kind::Import) {
+			if (auto full = fs::canonical(path); already_imported.contains(full)) {
+				tokens.erase(pos, pos + 2);
+				continue;
+			} else {
+				already_imported.insert(full);
+			}
+		}
 
 		std::ifstream file_stream(path);
 		if (!file_stream) {
@@ -409,7 +427,6 @@ auto main(int argc, char **argv) -> int
 		std::vector<Token> included_file_tokens;
 		compile &= lex(file, path.string(), included_file_tokens);
 
-		auto const pos = tokens.begin() + offset;
 		tokens.erase(pos, pos + 2);
 
 		if (included_file_tokens.empty())

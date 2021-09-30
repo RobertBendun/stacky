@@ -1,5 +1,5 @@
-"posix.stacky"  include
-"limits.stacky" include
+"posix"  import
+"limits" import
 
 nl fun
 	'\n' top 1 swap stdout SYS_write syscall3 drop drop

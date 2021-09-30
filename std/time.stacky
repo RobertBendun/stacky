@@ -1,4 +1,4 @@
-"posix.stacky" include
+"posix" import
 
 now fun # -- seconds
 	0 SYS_time syscall1
