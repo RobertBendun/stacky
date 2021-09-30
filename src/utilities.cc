@@ -75,3 +75,24 @@ static decltype(auto) callv(F&& func, B&& def, A&&... args)
 		return std::forward<B>(def);
 	}
 }
+
+constexpr auto max_digits64(unsigned Base)
+{
+	switch (Base) {
+	case 2:  return 64u;
+	case 4:  return 32u;
+	case 6:  return 25u;
+	case 8:  return 22u;
+	case 10: return 20u;
+	case 16: return 16u;
+	default:
+		throw std::invalid_argument("max_digits64 does not support this base!");
+	}
+}
+
+constexpr auto pow(std::uint64_t x, std::uint64_t n) -> std::uint64_t
+{
+	std::uint64_t r = 1;
+	for (; n > 0; --n) r *= x;
+	return r;
+}
