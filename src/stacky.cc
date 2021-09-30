@@ -224,6 +224,24 @@ struct Word
 
 using Words = std::unordered_map<std::string, Word>;
 
+struct Label_Info
+{
+	std::string_view function;
+	unsigned jump;
+
+	auto operator<=>(Label_Info const&) const = default;
+};
+
+struct Generation_Info
+{
+	std::unordered_map<std::string, unsigned> strings;
+	std::unordered_map<std::string, Word> words;
+	std::vector<Operation> main;
+
+	std::unordered_set<std::string> undefined_words;
+	std::set<Label_Info> jump_targets_lookup;
+};
+
 #include "unicode.cc"
 #include "arguments.cc"
 #include "lexer.cc"
@@ -311,6 +329,36 @@ auto search_include_path(fs::path includer_path, fs::path include_path) -> std::
 	return std::nullopt;
 }
 
+void generate_jump_targets_lookup(Generation_Info &geninfo, std::vector<Operation> const& ops, std::string_view name = {})
+{
+	unsigned i = 0;
+	for (auto const& op : ops) {
+		switch (op.kind) {
+		case Operation::Kind::End:
+		case Operation::Kind::If:
+		case Operation::Kind::Else:
+		case Operation::Kind::Do:
+			{
+				assert(op.jump != Operation::Empty_Jump);
+				geninfo.jump_targets_lookup.insert({ name, op.jump });
+			}
+			break;
+		default:
+			;
+		}
+		++i;
+	}
+}
+
+void generate_jump_targets_lookup(Generation_Info &geninfo)
+{
+	generate_jump_targets_lookup(geninfo, geninfo.main);
+	for (auto const& [name, def] : geninfo.words) {
+		if (def.kind != Word::Kind::Function) continue;
+		generate_jump_targets_lookup(geninfo, def.function_body, name);
+	}
+}
+
 auto main(int argc, char **argv) -> int
 {
 	parse_arguments(argc, argv);
@@ -371,19 +419,20 @@ auto main(int argc, char **argv) -> int
 				std::make_move_iterator(included_file_tokens.end()));
 	}
 
-	std::unordered_map<std::string, unsigned> strings;
-	parser::extract_strings(tokens, strings);
+	Generation_Info geninfo;
 
-	std::unordered_map<std::string, Word> words;
-	register_intrinsics(words);
-	parser::register_definitions(tokens, words);
-
-	std::vector<Operation> main;
-	parser::transform_into_operations(tokens, main, words);
+	parser::extract_strings(tokens, geninfo.strings);
+	register_intrinsics(geninfo.words);
+	parser::register_definitions(tokens, geninfo.words);
+	parser::transform_into_operations(tokens, geninfo.main, geninfo.words);
 	if (Compilation_Failed)
 		return 1;
 
-	linux::x86_64::generate_assembly(main, compiler_arguments.assembly, words, strings);
+
+	generate_jump_targets_lookup(geninfo);
+
+	linux::x86_64::generate_assembly(geninfo, compiler_arguments.assembly);
+
 	if (Compilation_Failed)
 		return 1;
 

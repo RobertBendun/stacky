@@ -29,7 +29,7 @@
 
 namespace linux::x86_64 {
 
-	auto asm_header(std::ostream &asm_file, Words &words, std::unordered_map<std::string, unsigned> const& strings)
+	auto asm_header(std::ostream &asm_file, Generation_Info const& geninfo)
 	{
 		asm_file << "BITS 64\n";
 
@@ -38,7 +38,7 @@ namespace linux::x86_64 {
 		asm_file << "segment .bss\n";
 		asm_file << "	_stacky_callstack: resq 1024\n";
 		asm_file << "	_stacky_callptr:   resq 1\n";
-		for (auto const& [key, value] : words) {
+		for (auto const& [key, value] : geninfo.words) {
 			switch (value.kind) {
 			case Word::Kind::Array: label(value) << "resb " << value.byte_size << '\n'; break;
 			default:
@@ -47,7 +47,7 @@ namespace linux::x86_64 {
 		}
 
 		asm_file << "segment .rodata\n";
-		for (auto const& [key, value] : strings) {
+		for (auto const& [key, value] : geninfo.strings) {
 			asm_file << String_Prefix << value << ": db ";
 			for (auto c : key) {
 				asm_file << int(c) << ',';
@@ -102,12 +102,12 @@ namespace linux::x86_64 {
 		Impl_Math(Subtract,     "subtract",     "sub rax, rbx\n");
 		Impl_Math(Min,          "min",          "cmp rax, rbx\ncmova rax, rbx\n");
 		Impl_Math(Max,          "max",          "cmp rax, rbx\ncmovb rax, rbx\n");
-		Impl_Math(Boolean_Or,  "or",
+		Impl_Math(Boolean_Or,   "or",
 				"xor rcx, rcx\n"
 				"or rax, rbx\n"
 				"setne cl\n"
 				"mov rax, rcx\n");
-		Impl_Math(Boolean_And, "and",
+		Impl_Math(Boolean_And,  "and",
 				"xor rcx, rcx\n"
 				"and rax, rbx\n"
 				"setne cl\n"
@@ -255,18 +255,13 @@ namespace linux::x86_64 {
 		}
 	}
 
-	auto generate_instructions(
-			std::vector<Operation> const& ops,
-			std::ostream& asm_file,
-			[[maybe_unused]] Words &words,
-			[[maybe_unused]] std::unordered_set<std::string> &undefined_words,
-			std::string_view instr_prefix) -> void
+	auto generate_instructions([[maybe_unused]] Generation_Info const& geninfo, std::vector<Operation> const& ops, std::ostream& asm_file, std::string_view instr_prefix, std::string_view name = {}) -> void
 	{
-
 		unsigned i = 0;
 		for (auto ops_it = std::cbegin(ops); ops_it != std::cend(ops); ++ops_it, ++i) {
 			auto const& op = *ops_it;
-			asm_file << instr_prefix << i << ":\n";
+			if (geninfo.jump_targets_lookup.contains({ name, i }))
+				asm_file << instr_prefix << i << ":\n";
 
 			switch (op.kind) {
 			case Operation::Kind::Intrinsic:
@@ -290,12 +285,14 @@ namespace linux::x86_64 {
 				asm_file << "	jmp " << instr_prefix << ops.size() << '\n';
 				break;
 			case Operation::Kind::End:
+				assert(op.jump != Operation::Empty_Jump);
 				asm_file << "	;; end\n";
 				if (i + 1 != op.jump)
 					asm_file << "	jmp " << instr_prefix << op.jump << '\n';
 				break;
 			case Operation::Kind::Do:
 			case Operation::Kind::If:
+				assert(op.jump != Operation::Empty_Jump);
 				asm_file << "	;; if | do\n";
 				asm_file << "	pop rax\n";
 				asm_file << "	test rax, rax\n";
@@ -315,21 +312,18 @@ namespace linux::x86_64 {
 		asm_file << instr_prefix << ops.size() << ":";
 	}
 
-
-	auto generate_assembly(std::vector<Operation> const& ops, fs::path const& asm_path, Words &words, std::unordered_map<std::string, unsigned> const& strings)
+	auto generate_assembly(Generation_Info &geninfo, fs::path const& asm_path)
 	{
-		std::unordered_set<std::string> undefined_words;
-
 		std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 		if (!asm_file) {
 			error("Cannot generate ASM file ", asm_path);
 			return;
 		}
 
-		asm_header(asm_file, words, strings);
+		asm_header(asm_file, geninfo);
 
-		char buffer[sizeof(Function_Body_Prefix) + 20];
-		for (auto& [name, def] : words) {
+		char function_label[sizeof(Function_Body_Prefix) + 20];
+		for (auto& [name, def] : geninfo.words) {
 			if (def.kind != Word::Kind::Function)
 				continue;
 
@@ -340,15 +334,15 @@ namespace linux::x86_64 {
 			asm_file << "	mov [_stacky_callstack+rbx*8], rax\n";
 			asm_file << "	add qword [_stacky_callptr], 1\n";
 
-			std::sprintf(buffer, Function_Body_Prefix "%lu_", def.id);
-			generate_instructions(def.function_body, asm_file, words, undefined_words, buffer);
+			std::sprintf(function_label, Function_Body_Prefix "%lu_", def.id);
+			generate_instructions(geninfo, def.function_body, asm_file, function_label, name);
 			asm_file << '\n';
 			emit_return(asm_file);
 		}
 
 		asm_file << "global _start\n";
 		asm_file << "_start:\n";
-		generate_instructions(ops, asm_file, words, undefined_words, Label_Prefix);
+		generate_instructions(geninfo, geninfo.main, asm_file, Label_Prefix);
 
 		asm_file << R"asm(
 	;; exit syscall
