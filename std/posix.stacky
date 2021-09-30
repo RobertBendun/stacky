@@ -5,6 +5,25 @@ stderr 2 constant
 CLOCK_REALTIME  0 constant
 CLOCK_MONOTONIC 1 constant
 
+OCREAT       0o100        constant
+OEXCL        0o200        constant
+ONOCTTY      0o400        constant
+OTRUNC       0o1000       constant
+OAPPEND      0o2000       constant
+ONONBLOCK    0o4000       constant
+ODSYNC       0o10000      constant
+OSYNC        0o4010000    constant
+ORSYNC       0o4010000    constant
+ODIRECTORY   0o200000     constant
+ONOFOLLOW    0o400000     constant
+OCLOEXEC     0o2000000    constant
+OASYNC       0o20000      constant
+ODIRECT      0o40000      constant
+OLARGEFILE   0            constant
+ONOATIME     0o1000000    constant
+OPATH        0o10000000   constant
+OTMPFILE     0o20200000   constant
+
 SYS_read                     0     constant
 SYS_write                    1     constant
 SYS_open                     2     constant
