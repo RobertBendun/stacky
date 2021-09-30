@@ -18,10 +18,11 @@ auto parse_int(Token &token) -> bool
 
 	static_assert(Powers_Lookup.size() == Max_Digits);
 
-	unsigned underscores = std::count(std::cbegin(s), std::cend(s), '_');
+	unsigned const underscores = std::count(std::cbegin(s), std::cend(s), '_');
 
 	token.ival = 0;
-	auto i = Max_Digits - s.size() - underscores;
+
+	auto i = Max_Digits - s.size() + underscores;
 
 	for (; !s.empty(); s.remove_prefix(1)) {
 		auto const c = s.front();
