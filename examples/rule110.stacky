@@ -9,13 +9,13 @@ Buffer Buffer-Size []byte
 Print-Board fun
 	0 while dup Board-Size < do
 		dup Board + read8 if
-			dup Buffer + 42 write8
+			dup Buffer + '*' write8
 		else
-			dup Buffer + 32 write8
+			dup Buffer + ' ' write8
 		end
 		1 +
 	end
-	Buffer Buffer-Size 1 - + 10 write8 # Add newline
+	Buffer Buffer-Size 1 - + '\n' write8 # Add newline
 	Buffer-Size Buffer stdout SYS_write syscall3 2drop
 end
 

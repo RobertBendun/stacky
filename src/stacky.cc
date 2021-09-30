@@ -27,11 +27,11 @@ namespace fs = std::filesystem;
 // GENERATED FILES
 #include "enum-names.cc"
 
-#define Label_Prefix "_stacky_instr_"
-#define Symbol_Prefix "_stacky_symbol_"
-#define String_Prefix "_stacky_string_"
-#define Function_Prefix "_stacky_fun_"
-#define Function_Body_Prefix "_stacky_funinstr_"
+#define Label_Prefix "_Stacky_instr_"
+#define Symbol_Prefix "_Stacky_symbol_"
+#define String_Prefix "_Stacky_string_"
+#define Function_Prefix "_Stacky_fun_"
+#define Function_Body_Prefix "_Stacky_funinstr_"
 #define Anonymous_Function_Prefix "_Stacky_anonymous_"
 
 struct Arguments
@@ -232,7 +232,6 @@ struct Label_Info
 {
 	std::string_view function;
 	unsigned jump;
-
 	auto operator<=>(Label_Info const&) const = default;
 };
 
@@ -441,8 +440,10 @@ auto main(int argc, char **argv) -> int
 	Generation_Info geninfo;
 
 	parser::extract_strings(tokens, geninfo.strings);
+
 	register_intrinsics(geninfo.words);
 	parser::register_definitions(tokens, geninfo.words);
+
 	parser::transform_into_operations(tokens, geninfo.main, geninfo.words);
 	if (Compilation_Failed)
 		return 1;
@@ -467,5 +468,10 @@ auto main(int argc, char **argv) -> int
 		std::stringstream ss;
 		ss << "ld -o " << compiler_arguments.executable << " " << obj_path;
 		system(ss.str().c_str());
+	}
+
+	if (compiler_arguments.run_mode) {
+		auto const path = fs::absolute(compiler_arguments.executable);
+		execl(path.c_str(), compiler_arguments.executable.c_str(), (char*)NULL);
 	}
 }
