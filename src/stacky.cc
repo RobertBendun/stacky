@@ -356,6 +356,38 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 	}
 }
 
+void remove_unused_words(Generation_Info &geninfo, std::vector<Operation> const& function_body, std::unordered_set<std::uint64_t> &used_words)
+{
+	for (auto const& op : function_body) {
+		if ((op.kind != Operation::Kind::Push_Symbol && op.kind != Operation::Kind::Call_Symbol) || op.token.kind == Token::Kind::String)
+			continue;
+
+		if (used_words.contains(op.ival))
+			continue;
+
+		used_words.insert(op.ival);
+		auto const word = std::find_if(std::cbegin(geninfo.words), std::cend(geninfo.words), [word_id = op.ival](auto const &entry)
+		{
+			return entry.second.id == word_id;
+		});
+		assert(word != std::cend(geninfo.words));
+		if (word->second.kind != Word::Kind::Function)
+			continue;
+		remove_unused_words(geninfo, word->second.function_body, used_words);
+	}
+}
+
+void remove_unused_words(Generation_Info &geninfo)
+{
+	std::unordered_set<std::uint64_t> used_words;
+
+	remove_unused_words(geninfo, geninfo.main, used_words);
+	auto const removed = std::erase_if(geninfo.words, [&](auto const& entry) {
+		return (entry.second.kind == Word::Kind::Function || entry.second.kind == Word::Kind::Array) && !used_words.contains(entry.second.id);
+	});
+	std::cout << "Removed " << removed << " functions and arrays\n";
+}
+
 auto main(int argc, char **argv) -> int
 {
 	parse_arguments(argc, argv);
@@ -449,6 +481,7 @@ auto main(int argc, char **argv) -> int
 
 
 	generate_jump_targets_lookup(geninfo);
+	remove_unused_words(geninfo);
 
 	linux::x86_64::generate_assembly(geninfo, compiler_arguments.assembly);
 
