@@ -385,7 +385,7 @@ void remove_unused_words_and_strings(
 	}
 }
 
-void remove_unused_words_and_strings(Generation_Info &geninfo)
+auto remove_unused_words_and_strings(Generation_Info &geninfo) -> bool
 {
 	std::unordered_set<std::uint64_t> used_words;
 	std::unordered_set<std::uint64_t> used_strings;
@@ -398,11 +398,96 @@ void remove_unused_words_and_strings(Generation_Info &geninfo)
 	auto const removed_strings = std::erase_if(geninfo.strings, [&](auto const& entry) {
 		return !used_strings.contains(entry.second);
 	});
+
+	return removed_words + removed_strings;
 	// TODO introduce verbose flag
 #if 0
 	std::cout << "Removed " << removed_words << " functions and arrays\n";
 	std::cout << "Removed " << removed_strings << " strings\n";
 #endif
+}
+
+auto optimize_comptime_known_conditions([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> &function_body) -> bool
+{
+	bool done_something = false;
+
+	for (auto i = 1u; i < function_body.size(); ++i) {
+		auto const& condition = function_body[i-1];
+		auto const& branch = function_body[i];
+		if (condition.kind != Operation::Kind::Push_Int || branch.kind != Operation::Kind::Do && branch.kind != Operation::Kind::If)
+			continue;
+		done_something = true;
+
+		auto removed_operations = 0u;
+
+		switch (branch.kind) {
+		case Operation::Kind::Do:
+			{
+				if (condition.ival != 0) {
+					std::cout << "Infinite loop\n";
+					// infinite loop case
+					removed_operations += 2;
+					function_body.erase(std::cbegin(function_body) + branch.jump, std::end(function_body));
+					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + i + 1);
+				} else {
+					// eliminate loop body, condition and `while`
+					removed_operations += branch.jump - i + 2;
+					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + branch.jump);
+				}
+
+				auto condition_start_pos = unsigned(i-2);
+				while (condition_start_pos < function_body.size() &&
+						function_body[condition_start_pos].kind != Operation::Kind::While && function_body[condition_start_pos].jump != i)
+					--condition_start_pos;
+				function_body.erase(std::cbegin(function_body) + condition_start_pos);
+				++removed_operations;
+			}
+			break;
+		case Operation::Kind::If:
+			{
+				if (condition.ival != 0) {
+					// Do `if` has else branch? If yes, remove it. Otherwise remove unnesesary end operation
+					if (auto const else_branch = branch.jump-1; function_body[else_branch].kind == Operation::Kind::Else) {
+						removed_operations += function_body[else_branch].jump + 1 - else_branch;
+						function_body.erase(std::cbegin(function_body) + else_branch, std::cbegin(function_body) + function_body[else_branch].jump + 1);
+					} else {
+						assert(function_body[else_branch].kind == Operation::Kind::End);
+						function_body.erase(std::cbegin(function_body) + else_branch);
+						++removed_operations;
+					}
+					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + i + 1);
+					removed_operations += 2;
+				} else {
+					// Do `if` has else branch? If yes, remove `end` operation from it
+					auto const else_branch = branch.jump-1;
+					if (function_body[else_branch].kind == Operation::Kind::Else) {
+						assert(function_body[function_body[else_branch].jump].kind == Operation::Kind::End);
+						function_body.erase(std::cbegin(function_body) + function_body[else_branch].jump);
+						++removed_operations;
+					}
+
+					// remove then branch and condition
+					removed_operations += else_branch - i + 2;
+					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + else_branch + 1);
+				}
+			}
+			break;
+		default:
+			;
+		}
+
+		for (auto &op : function_body) {
+			if (op.jump >= i + removed_operations)
+				op.jump -= removed_operations;
+		}
+	}
+
+	return done_something;
+}
+
+auto optimize_comptime_known_conditions(Generation_Info &geninfo) -> bool
+{
+	return optimize_comptime_known_conditions(geninfo, geninfo.main);
 }
 
 auto main(int argc, char **argv) -> int
@@ -497,8 +582,11 @@ auto main(int argc, char **argv) -> int
 		return 1;
 
 
+	while (remove_unused_words_and_strings(geninfo)
+		|| optimize_comptime_known_conditions(geninfo))
+	{
+	}
 	generate_jump_targets_lookup(geninfo);
-	remove_unused_words_and_strings(geninfo);
 
 	linux::x86_64::generate_assembly(geninfo, compiler_arguments.assembly);
 
