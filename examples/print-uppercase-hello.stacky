@@ -5,8 +5,8 @@ Hello Hello-Count []byte
 
 "hello"
 0 while dup Hello-Count 1 - < do
-	2dup + read8 32 -
-	over Hello + swap write8
+	2dup + load8 32 -
+	over Hello + swap store8
 	1 +
 end
 

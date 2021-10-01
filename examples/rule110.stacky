@@ -8,29 +8,29 @@ Buffer Buffer-Size []byte
 
 Print-Board fun
 	0 while dup Board-Size < do
-		dup Board + read8 if
-			dup Buffer + '*' write8
+		dup Board + load8 if
+			dup Buffer + '*' store8
 		else
-			dup Buffer + ' ' write8
+			dup Buffer + ' ' store8
 		end
 		1 +
 	end
-	Buffer Buffer-Size 1 - + '\n' write8 # Add newline
+	Buffer Buffer-Size 1 - + '\n' store8 # Add newline
 	Buffer-Size Buffer stdout SYS_write syscall3 2drop
 end
 
-Board Board-Size 2 - + 1 write8
+Board Board-Size 2 - + 1 store8
 0 while dup Board-Size 2 - < do
 	Print-Board
 
-	Board     read8 1 <<
-	Board 1 + read8 bit-or
+	Board     load8 1 <<
+	Board 1 + load8 bit-or
 
 	1 while dup Board-Size 2 - < do
 		swap 1 << 7 bit-and
-		over Board + 1 + read8 bit-or
+		over Board + 1 + load8 bit-or
 		2dup 110 swap >> 1 bit-and
-		swap Board + swap write8
+		swap Board + swap store8
 		swap
 		1 +
 	end

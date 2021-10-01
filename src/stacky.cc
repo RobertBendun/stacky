@@ -157,14 +157,8 @@ enum class Intrinsic_Kind
 		Two_Swap,
 
 		// --- MEMORY ---
-		Read8,
-		Read16,
-		Read32,
-		Read64,
-		Write8,
-		Write16,
-		Write32,
-		Write64,
+		Load,  // previously known as Read8, Read16...
+	 	Store, // previously known as Write8, Write16, ...
 		Top,
 		Call,
 
@@ -294,10 +288,10 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "mod"sv,       Intrinsic_Kind::Mod);
 	register_intrinsic(words, "or"sv,        Intrinsic_Kind::Boolean_Or);
 	register_intrinsic(words, "over"sv,      Intrinsic_Kind::Over);
-	register_intrinsic(words, "read16"sv,    Intrinsic_Kind::Read16);
-	register_intrinsic(words, "read32"sv,    Intrinsic_Kind::Read32);
-	register_intrinsic(words, "read64"sv,    Intrinsic_Kind::Read64);
-	register_intrinsic(words, "read8"sv,     Intrinsic_Kind::Read8);
+	register_intrinsic(words, "load16"sv,    Intrinsic_Kind::Load);
+	register_intrinsic(words, "load32"sv,    Intrinsic_Kind::Load);
+	register_intrinsic(words, "load64"sv,    Intrinsic_Kind::Load);
+	register_intrinsic(words, "load8"sv,     Intrinsic_Kind::Load);
 	register_intrinsic(words, "rot"sv,       Intrinsic_Kind::Rot);
 	register_intrinsic(words, "swap"sv,      Intrinsic_Kind::Swap);
 	register_intrinsic(words, "syscall0"sv,  Intrinsic_Kind::Syscall);
@@ -309,10 +303,10 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "syscall6"sv,  Intrinsic_Kind::Syscall);
 	register_intrinsic(words, "top"sv,       Intrinsic_Kind::Top);
 	register_intrinsic(words, "tuck"sv,      Intrinsic_Kind::Tuck);
-	register_intrinsic(words, "write16"sv,   Intrinsic_Kind::Write16);
-	register_intrinsic(words, "write32"sv,   Intrinsic_Kind::Write32);
-	register_intrinsic(words, "write64"sv,   Intrinsic_Kind::Write64);
-	register_intrinsic(words, "write8"sv,    Intrinsic_Kind::Write8);
+	register_intrinsic(words, "store16"sv,   Intrinsic_Kind::Store);
+	register_intrinsic(words, "store32"sv,   Intrinsic_Kind::Store);
+	register_intrinsic(words, "store64"sv,   Intrinsic_Kind::Store);
+	register_intrinsic(words, "store8"sv,    Intrinsic_Kind::Store);
 }
 
 auto search_include_path(fs::path includer_path, fs::path include_path) -> std::optional<fs::path>
@@ -386,6 +380,11 @@ auto main(int argc, char **argv) -> int
 
 	std::unordered_set<std::string> already_imported;
 
+	// make lifetime of included paths the lifetime of a program
+	// to have ability to print filename path in any moment for
+	// error reporting reasons
+	std::vector<std::string> included_paths;
+
 	for (;;) {
 		auto maybe_include = parser::extract_include_or_import(tokens);
 		if (!maybe_include)
@@ -424,7 +423,7 @@ auto main(int argc, char **argv) -> int
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
 
 		std::vector<Token> included_file_tokens;
-		compile &= lex(file, path.string(), included_file_tokens);
+		compile &= lex(file, included_paths.emplace_back(path.string()), included_file_tokens);
 
 		tokens.erase(pos, pos + 2);
 

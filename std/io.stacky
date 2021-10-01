@@ -7,7 +7,7 @@ end
 
 print fun
 	dup
-	dup while dup read8 0 != do 1 + end swap - # strlen
+	dup while dup load8 0 != do 1 + end swap - # strlen
 	swap stdout SYS_write syscall3 drop # Print string
 end
 
@@ -35,11 +35,11 @@ Print_Buffer Max_Digits10 []byte
 		over swap
 		10 divmod
 		swap rot
-		Print_Buffer + swap '0' + write8
+		Print_Buffer + swap '0' + store8
 		swap 1 -
 		swap
 	end
-	'0' + Print_Buffer swap write8
+	'0' + Print_Buffer swap store8
 	drop
 	Print_Buffer stdout SYS_write syscall3 drop
 	nl

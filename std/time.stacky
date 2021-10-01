@@ -8,7 +8,7 @@ timespec 2 []u64
 
 # seconds
 sleep fun # seconds --
-	timespec swap write64
+	timespec swap store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
 end
 
@@ -23,7 +23,7 @@ date fun # seconds -- year month day hours minutes
 	dup 24 mod swap 24 div # get hours
 
 	719468 + # shift epoch from 1970-01-01 to 0000-03-01
-	dup 146097 div era over write64    # era
+	dup 146097 div era over store64    # era
 	146097 * - # doe
 
 	dup # yoe
@@ -31,7 +31,7 @@ date fun # seconds -- year month day hours minutes
 		over 36524 div +
 		over 146096 div -
 		365 div
-		dup era read64 400 * +
+		dup era load64 400 * +
 		swap rot
 
 	# doy

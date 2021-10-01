@@ -205,16 +205,17 @@ namespace linux::x86_64 {
 		Impl_Compare(Less_Eq,     "less or equal",     "be");
 		Impl_Compare(Not_Equal,   "not equal",         "ne");
 
-		case Intrinsic_Kind::Read8:
-		case Intrinsic_Kind::Read16:
-		case Intrinsic_Kind::Read32:
-		case Intrinsic_Kind::Read64:
+		case Intrinsic_Kind::Load:
 			{
-				static_assert(linear(1,
-					Intrinsic_Kind::Read8, Intrinsic_Kind::Read16,
-					Intrinsic_Kind::Read32, Intrinsic_Kind::Read64));
-				auto const offset = int(op.intrinsic) - int(Intrinsic_Kind::Read8);
-				asm_file << "	;; read" << (8 << offset) << "\n";
+				auto offset = 0u;
+				switch (op.token.sval[4]) {
+					case '8': offset = 0; break;
+					case '1': offset = 1; break;
+					case '3': offset = 2; break;
+					case '6': offset = 3; break;
+					default: assert_msg(false, "unreachable");
+				}
+				asm_file << "	;; load" << (8 << offset) << "\n";
 				asm_file << "	pop rax\n";
 				asm_file << "	xor rbx, rbx\n";
 				asm_file << "	mov " << Register_B_By_Size[offset] << ", [rax]\n";
@@ -222,20 +223,20 @@ namespace linux::x86_64 {
 			}
 			break;
 
-		case Intrinsic_Kind::Write8:
-		case Intrinsic_Kind::Write16:
-		case Intrinsic_Kind::Write32:
-		case Intrinsic_Kind::Write64:
+		case Intrinsic_Kind::Store:
 			{
-				static_assert(linear(1,
-					Intrinsic_Kind::Write8, Intrinsic_Kind::Write16,
-					Intrinsic_Kind::Write32, Intrinsic_Kind::Write64));
-				auto const offset = int(op.intrinsic) - int(Intrinsic_Kind::Write8);
-				asm_file << "	;; write" << (8 << offset) << "\n";
+				auto offset = 0u;
+				switch (op.token.sval[5]) {
+					case '8': offset = 0; break;
+					case '1': offset = 1; break;
+					case '3': offset = 2; break;
+					case '6': offset = 3; break;
+					default: assert_msg(false, "unreachable ");
+				}
+				asm_file << "	;; store" << (8 << offset) << "\n";
 				asm_file << "	pop rbx\n";
 				asm_file << "	pop rax\n";
 				asm_file << "	mov [rax], " << Register_B_By_Size[offset] << "\n";
-
 			}
 			break;
 
