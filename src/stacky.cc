@@ -356,36 +356,53 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 	}
 }
 
-void remove_unused_words(Generation_Info &geninfo, std::vector<Operation> const& function_body, std::unordered_set<std::uint64_t> &used_words)
+void remove_unused_words_and_strings(
+		Generation_Info &geninfo,
+		std::vector<Operation> const& function_body,
+		std::unordered_set<std::uint64_t> &used_words,
+		std::unordered_set<std::uint64_t> &used_strings)
 {
 	for (auto const& op : function_body) {
-		if ((op.kind != Operation::Kind::Push_Symbol && op.kind != Operation::Kind::Call_Symbol) || op.token.kind == Token::Kind::String)
+		if (op.kind != Operation::Kind::Push_Symbol && op.kind != Operation::Kind::Call_Symbol)
 			continue;
 
-		if (used_words.contains(op.ival))
-			continue;
+		if (op.token.kind == Token::Kind::String) {
+			used_strings.insert(op.token.ival);
+		} else {
+			if (used_words.contains(op.ival))
+				continue;
 
-		used_words.insert(op.ival);
-		auto const word = std::find_if(std::cbegin(geninfo.words), std::cend(geninfo.words), [word_id = op.ival](auto const &entry)
-		{
-			return entry.second.id == word_id;
-		});
-		assert(word != std::cend(geninfo.words));
-		if (word->second.kind != Word::Kind::Function)
-			continue;
-		remove_unused_words(geninfo, word->second.function_body, used_words);
+			used_words.insert(op.ival);
+			auto const word = std::find_if(std::cbegin(geninfo.words), std::cend(geninfo.words), [word_id = op.ival](auto const &entry)
+			{
+				return entry.second.id == word_id;
+			});
+			assert(word != std::cend(geninfo.words));
+			if (word->second.kind != Word::Kind::Function)
+				continue;
+			remove_unused_words_and_strings(geninfo, word->second.function_body, used_words, used_strings);
+		}
 	}
 }
 
-void remove_unused_words(Generation_Info &geninfo)
+void remove_unused_words_and_strings(Generation_Info &geninfo)
 {
 	std::unordered_set<std::uint64_t> used_words;
+	std::unordered_set<std::uint64_t> used_strings;
 
-	remove_unused_words(geninfo, geninfo.main, used_words);
-	auto const removed = std::erase_if(geninfo.words, [&](auto const& entry) {
+	remove_unused_words_and_strings(geninfo, geninfo.main, used_words, used_strings);
+	auto const removed_words = std::erase_if(geninfo.words, [&](auto const& entry) {
 		return (entry.second.kind == Word::Kind::Function || entry.second.kind == Word::Kind::Array) && !used_words.contains(entry.second.id);
 	});
-	std::cout << "Removed " << removed << " functions and arrays\n";
+
+	auto const removed_strings = std::erase_if(geninfo.strings, [&](auto const& entry) {
+		return !used_strings.contains(entry.second);
+	});
+	// TODO introduce verbose flag
+#if 0
+	std::cout << "Removed " << removed_words << " functions and arrays\n";
+	std::cout << "Removed " << removed_strings << " strings\n";
+#endif
 }
 
 auto main(int argc, char **argv) -> int
@@ -481,7 +498,7 @@ auto main(int argc, char **argv) -> int
 
 
 	generate_jump_targets_lookup(geninfo);
-	remove_unused_words(geninfo);
+	remove_unused_words_and_strings(geninfo);
 
 	linux::x86_64::generate_assembly(geninfo, compiler_arguments.assembly);
 
