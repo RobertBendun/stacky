@@ -43,6 +43,10 @@ clean:
 stat:
 	cloc --read-lang-def=etc/cloc-stacky-definition.txt --exclude-lang=Zig .
 
+.PHONY: stat-cpp
+stat-cpp:
+	cloc --include-lang="C++,C/C++ Header" .
+
 .PHONY: install-nvim
 install-nvim: etc/stacky.vim
 	cp $< /usr/share/nvim/runtime/syntax/

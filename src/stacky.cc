@@ -245,6 +245,15 @@ struct Generation_Info
 #include "parser.cc"
 #include "linux-x86_64.cc"
 
+auto for_all_functions(Generation_Info &geninfo, auto &&iteration)
+{
+	bool result = callv(iteration, false, geninfo, geninfo.main);
+	for (auto &[name, word] : geninfo.words)
+		if (word.kind == Word::Kind::Function)
+			result |= callv(iteration, false, geninfo, word.function_body);
+	return result;
+}
+
 inline void register_intrinsic(Words &words, std::string_view name, Intrinsic_Kind kind)
 {
 	auto &i = words[std::string(name)];
@@ -411,83 +420,89 @@ auto optimize_comptime_known_conditions([[maybe_unused]] Generation_Info &geninf
 {
 	bool done_something = false;
 
-	for (auto i = 1u; i < function_body.size(); ++i) {
-		auto const& condition = function_body[i-1];
-		auto const& branch = function_body[i];
+	auto const remap = [&function_body](unsigned start, unsigned end, unsigned amount, auto const& ...msg)
+	{
+		for (auto& op : function_body)
+			if (op.jump >= start && op.jump <= end) {
+				// (std::cout << ... << msg) << ((sizeof...(msg)==0)+" ") << op.jump << " -> " << (op.jump - amount) << '\n';
+				op.jump -= amount;
+			}
+	};
+
+	for (auto branch_op = 1u; branch_op < function_body.size(); ++branch_op) {
+		auto const condition_op = branch_op - 1;
+
+		auto const& condition = function_body[condition_op];
+		auto const& branch = function_body[branch_op];
 		if (condition.kind != Operation::Kind::Push_Int || branch.kind != Operation::Kind::Do && branch.kind != Operation::Kind::If)
 			continue;
 		done_something = true;
 
-		auto removed_operations = 0u;
+		// report(Report::Info, branch.token, "optimizing");
 
 		switch (branch.kind) {
 		case Operation::Kind::Do:
 			{
+				auto const condition_ival = condition.ival;
+				auto const end_op = branch.jump-1;
+
 				if (condition.ival != 0) {
-					std::cout << "Infinite loop\n";
-					// infinite loop case
-					removed_operations += 2;
+					assert(function_body[branch.jump-1].kind == Operation::Kind::End);
 					function_body.erase(std::cbegin(function_body) + branch.jump, std::end(function_body));
-					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + i + 1);
+					function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch_op + 1);
+					remap(branch_op+1, end_op, 3);
 				} else {
-					// eliminate loop body, condition and `while`
-					removed_operations += branch.jump - i + 2;
-					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + branch.jump);
+					function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch.jump);
+					remap(end_op, -1, end_op - branch_op + 3);
 				}
 
-				auto condition_start_pos = unsigned(i-2);
-				while (condition_start_pos < function_body.size() &&
-						function_body[condition_start_pos].kind != Operation::Kind::While && function_body[condition_start_pos].jump != i)
-					--condition_start_pos;
-				function_body.erase(std::cbegin(function_body) + condition_start_pos);
-				++removed_operations;
+				// find and remove `while`
+				auto while_op = unsigned(condition_op-1);
+				while (while_op < function_body.size() &&
+						function_body[while_op].kind != Operation::Kind::While && function_body[while_op].jump != branch_op)
+					--while_op;
+				function_body.erase(std::cbegin(function_body) + while_op);
+				if (condition_ival == 0)
+					remap(while_op, branch_op, 1);
 			}
 			break;
 		case Operation::Kind::If:
 			{
+				auto const end_or_else = branch.jump-1;
+				auto const else_op = end_or_else;
+				auto const end = function_body[end_or_else].kind == Operation::Kind::Else ? function_body[end_or_else].jump-1 : end_or_else;
+
 				if (condition.ival != 0) {
 					// Do `if` has else branch? If yes, remove it. Otherwise remove unnesesary end operation
-					if (auto const else_branch = branch.jump-1; function_body[else_branch].kind == Operation::Kind::Else) {
-						removed_operations += function_body[else_branch].jump + 1 - else_branch;
-						function_body.erase(std::cbegin(function_body) + else_branch, std::cbegin(function_body) + function_body[else_branch].jump + 1);
+					if (end != else_op) {
+						function_body.erase(std::cbegin(function_body) + else_op, std::cbegin(function_body) + end + 2);
+						remap(end, -1, end - else_op + 1);
 					} else {
-						assert(function_body[else_branch].kind == Operation::Kind::End);
-						function_body.erase(std::cbegin(function_body) + else_branch);
-						++removed_operations;
+						function_body.erase(std::cbegin(function_body) + else_op);
+						remap(end, -1, 1);
 					}
-					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + i + 1);
-					removed_operations += 2;
+					remap(branch_op, end_or_else, 2); // `if` and condition
+					function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch_op + 1);
 				} else {
 					// Do `if` has else branch? If yes, remove `end` operation from it
-					auto const else_branch = branch.jump-1;
-					if (function_body[else_branch].kind == Operation::Kind::Else) {
-						assert(function_body[function_body[else_branch].jump].kind == Operation::Kind::End);
-						function_body.erase(std::cbegin(function_body) + function_body[else_branch].jump);
-						++removed_operations;
+					if (end != else_op) {
+						function_body.erase(std::cbegin(function_body) + end);
 					}
 
 					// remove then branch and condition
-					removed_operations += else_branch - i + 2;
-					function_body.erase(std::cbegin(function_body) + i - 1, std::cbegin(function_body) + else_branch + 1);
+					function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + else_op + 1);
+					remap(end_or_else, -1, 3 + (end_or_else != end));
 				}
 			}
 			break;
 		default:
-			;
+			assert_msg(false, "unreachable");
 		}
 
-		for (auto &op : function_body) {
-			if (op.jump >= i + removed_operations)
-				op.jump -= removed_operations;
-		}
+		branch_op -= 1;
 	}
 
 	return done_something;
-}
-
-auto optimize_comptime_known_conditions(Generation_Info &geninfo) -> bool
-{
-	return optimize_comptime_known_conditions(geninfo, geninfo.main);
 }
 
 auto main(int argc, char **argv) -> int
@@ -583,7 +598,7 @@ auto main(int argc, char **argv) -> int
 
 
 	while (remove_unused_words_and_strings(geninfo)
-		|| optimize_comptime_known_conditions(geninfo))
+		|| for_all_functions(geninfo, optimize_comptime_known_conditions))
 	{
 	}
 	generate_jump_targets_lookup(geninfo);
