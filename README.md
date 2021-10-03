@@ -3,7 +3,13 @@
 **WIP** stack-based compiled programming language with purpose of beeing a learning expirience. **Currently Linux-only**
 
 ## Example
-Program printing "HELLO" to stdout, that was transformed from "hello"
+### hello, world
+```
+"io" import
+
+"hello, world" println
+```
+### Program printing "HELLO" to stdout, that was transformed from "hello"
 
 ```
 "io" import
@@ -13,12 +19,33 @@ Hello Hello-Count []byte
 
 "hello"
 0 while dup Hello-Count 1 - < do
-	2dup + load8 32 -
+	2dup + load8 'a' 'A' - -
 	over Hello + swap store8
 	1 +
 end
 
 Hello println
+```
+
+### Print current date
+```
+"io"   import
+"time" import
+
+"Date is " print
+
+2cell-print fun
+	dup 10 < if "0" print end
+	print-int
+end
+
+now # returns seconds in Unix time
+date # returns year, month, day, hours, minutes
+	print-int "-" print
+	2cell-print "-" print
+	2cell-print " " print
+	2cell-print ":" print
+	2cell-print
 ```
 
 ## Language reference
