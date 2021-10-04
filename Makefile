@@ -20,10 +20,10 @@ all: stacky test $(Compiled_Examples)
 # ------------ COMPILER COMPILATION ------------
 
 stacky: $(Compiler_Sources)
-	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options
+	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt
 
 run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
-	$(Compiler) $(Options) $< -o $@ -O3
+	$(Compiler) $(Options) $< -o $@ -O3 -lfmt
 
 # ------------ C++ CODE GENERATION ------------
 

@@ -85,7 +85,7 @@ auto lex(std::string_view const file, std::string_view const path, std::vector<T
 			});
 
 			if (str_end == std::cend(file))
-				error(token, "Missing terminating ", ch, " character");
+				error(token, "Missing terminating `{}` character."_format(ch));
 
 			token.sval = { std::cbegin(file) + i, str_end + 2 };
 		} else {

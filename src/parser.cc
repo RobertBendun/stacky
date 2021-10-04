@@ -21,7 +21,7 @@ namespace parser
 					{
 						auto const length = v == 'u' ? 4 : 8;
 
-						ensure(i + length < sequence.size(), token, "Unicode escape sequence must be exactly ", length, " digits long");
+						ensure(i + length < sequence.size(), token, "Unicode escape sequence must be exactly {} digits long"_format(length));
 
 						uint32_t rune = 0;
 						auto end = sequence.data() + i + length + 1;
@@ -45,14 +45,14 @@ namespace parser
 							if (auto c = sequence[i + 1 + j]; c >= '0' && c <= '9') hex_value = (hex_value << (4*j)) | (c - '0');
 							else if (c >= 'a' && c <= 'f') hex_value = (hex_value << (4*j)) | (c - 'a' + 10);
 							else if (c >= 'A' && c <= 'F') hex_value = (hex_value << (4*j)) | (c - 'A' + 10);
-							else error(token, "Expected hexadecimal digit, found: ", c);
+							else error(token, "Expected hexadecimal digit, found: {}"_format(c));
 						}
 						v = hex_value;
 						i += 2;
 					}
 					break;
 				default:
-					error(token, "Unrecognized escape sequence: '\\", v, "'");
+					error(token, "Unrecognized escape sequence: '\\{}'"_format(v));
 				}
 				next_escaped = false;
 			}
@@ -115,7 +115,7 @@ namespace parser
 	{
 		auto const check_if_has_been_defined = [&](auto const& token, auto const& name) {
 			if (compiler_arguments.warn_redefinitions && words.contains(name)) {
-				warning(token, name, " has already been defined");
+				warning(token, "`{}` has already been defined"_format(name));
 			}
 		};
 
@@ -169,7 +169,7 @@ namespace parser
 
 			case Keyword_Kind::Array:
 				{
-					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, token.sval, " should be preceeded by an identifier");
+					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, "{} should be preceeded by an identifier"_format(token.sval));
 
 					unsigned size = 0;
 					switch (auto &t = tokens[i-1]; t.kind) {
@@ -183,7 +183,7 @@ namespace parser
 						}
 						[[fallthrough]];
 					default:
-						error(token, token.sval, " should be preceeded by an integer");
+						error(token, "{} should be preceeded by an integer"_format(token.sval));
 					}
 
 					switch (token.sval[3]) {
@@ -330,7 +330,7 @@ namespace parser
 			case Token::Kind::Word:
 				{
 					auto word_it = words.find(token.sval);
-					ensure(word_it != std::end(words), token, "Word `", token.sval, "` has not been defined yet");
+					ensure(word_it != std::end(words), token, "Word `{}` has not been defined yet"_format(token.sval));
 					switch (auto word = word_it->second; word.kind) {
 					case Word::Kind::Intrinsic:
 						{

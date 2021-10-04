@@ -18,7 +18,7 @@ void parse_arguments(int argc, char **argv)
 	po::options_description common("Common options");
 	common.add_options()
 		("help,h", "produce help message")
-		("verbose", "print all unnesesary info during compilation")
+		("verbose,V", "print all unnesesary info during compilation")
 		("version,v", "print version of compiler")
 	;
 
@@ -70,6 +70,7 @@ void parse_arguments(int argc, char **argv)
 
 	auto const& command = vm["command"].as<std::string>();
 
+
 	std::vector<std::string> opts = po::collect_unrecognized(parsed.options, po::include_positional);
 	opts.erase(opts.begin());
 
@@ -78,13 +79,11 @@ void parse_arguments(int argc, char **argv)
 	} else if (command == "build") {
 		po::store(po::command_line_parser(opts).options(build).run(), vm);
 	} else {
-		std::cerr << "[ERROR] Unrecognized command: " << std::quoted(command) << '\n';
-		exit(1);
+		error_fatal("Unrecognized command: "_format(command));
 	}
 
 	if (!vm.count("source-file")) {
-		std::cerr << "[ERROR] No source files were provided\n";
-		exit(1);
+		error_fatal("No source files ware provided");
 	}
 
 	compiler_arguments.source_files = vm["source-file"].as<std::vector<std::string>>();
@@ -103,4 +102,7 @@ void parse_arguments(int argc, char **argv)
 
 	compiler_arguments.compiler = fs::canonical("/proc/self/exe");
 	compiler_arguments.include_search_paths.push_back(compiler_arguments.compiler.parent_path() / "std");
+
+
+	compiler_arguments.verbose = vm.count("verbose");
 }

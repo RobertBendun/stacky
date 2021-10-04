@@ -21,31 +21,28 @@ enum class Report
 
 static bool Compilation_Failed = false;
 
-inline void report(Report report, auto const& ...message)
+inline std::string_view report_kind_str(Report r)
 {
-	auto& out = report == Report::Info ? std::cout : std::cerr;
-
-	std::cout << std::flush;
-	std::cerr << std::flush;
-	switch (report) {
-	case Report::Command:      out << "[CMD] ";          break;
-	case Report::Compiler_Bug: out << "[COMPILER BUG] "; break;
-	case Report::Error:        out << "[ERROR] ";        break;
-	case Report::Info:         out << "[INFO] ";         break;
-	case Report::Warning:      out << "[WARN] ";         break;
+	switch (r) {
+	case Report::Command:       return  "cmd";
+	case Report::Error:         return  "error";
+	case Report::Info:          return  "info";
+	case Report::Warning:       return  "warning";
+	default:
+	case Report::Compiler_Bug:  return  "compiler bug";
 	}
-
-	Compilation_Failed |= (report == Report::Compiler_Bug || report == Report::Error);
-
-	(out << ... << message) << '\n';
-
-	if (report == Report::Compiler_Bug)
-		std::exit(1);
 }
 
-inline void report(Report r, Locationable auto const& loc, auto const& ...message)
+inline void report(Report r, Locationable auto const& loc, auto const& m)
 {
-	report(r, loc.file, ':', loc.line, ':', loc.column, ": ", message...);
+	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
+	fmt::print(stderr, "{}:{}:{}: {}: {}\n", loc.file, loc.line, loc.column, report_kind_str(r), m);
+}
+
+inline void report(Report r, auto const& m)
+{
+	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
+	fmt::print(stderr, "stacky: {}: {}\n", report_kind_str(r), m);
 }
 
 inline void report(Report r, Has_Location_Field auto const& s, auto const& ...message)
@@ -68,6 +65,7 @@ inline void ensure(bool condition, auto const& ...args)
 {
 	if (condition) return;
 	report(Report::Error, args...);
+	exit(1);
 }
 
 inline void ensure_fatal(bool condition, auto const& ...args)
@@ -82,12 +80,14 @@ inline void warning(auto const& ...args)
 	report(Report::Warning, args...);
 }
 
-inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, auto const& ...args)
+inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, auto const &msg = std::string_view{})
 {
 	if (test) return;
-	report(Report::Compiler_Bug, "Assertion ", std::quoted(test_str), " in ",
-			sl.file_name(), ':', sl.line(), ':', sl.column(), ':', sl.function_name(),
-			"\n\twith message: ", args...);
+
+	fmt::print(stderr, "stacky: compiler bug: Assertion `{}` in {}:{}:{}:{} failed with message: {}\n",
+		test_str, sl.file_name(), sl.line(), sl.column(), sl.function_name(), msg);
+
+	exit(1);
 }
 
 #ifdef assert

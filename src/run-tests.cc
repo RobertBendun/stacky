@@ -6,10 +6,15 @@
 #include <span>
 #include <functional>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
 #include "errors.cc"
 #include "ipstream.hh"
 #include "utilities.cc"
 
+using namespace fmt::literals;
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 namespace rc = std::regex_constants;
@@ -75,9 +80,9 @@ int main(int argc, char **argv)
 	}
 
 	switch (auto status = fs::status(test_dir); status.type()) {
-	case fs::file_type::not_found: error("Directory ", test_dir, " does not exists"); return 1;
+	case fs::file_type::not_found: error("Directory {} does not exists"_format(test_dir)); return 1;
 	case fs::file_type::directory: break;
-	default: error(test_dir, " is not a directory");
+	default: error("{} is not a directory"_format(test_dir));
 	}
 
 
@@ -98,7 +103,7 @@ int main(int argc, char **argv)
 		executable_path /= source_code_path.stem();
 
 		if (!fs::exists(output_file_path)) {
-			error("Test ", source_code_path, " does not have matching expected output file ", output_file_path);
+			error("Test {} does not have matching expected output file {}"_format(source_code_path,  output_file_path));
 			return 1;
 		}
 
@@ -106,7 +111,7 @@ int main(int argc, char **argv)
 		{
 			std::ifstream source_code(source_code_path);
 			if (!source_code) {
-				error("Cannot open test ", source_code_path);
+				error("Cannot open test "_format(source_code_path));
 				return 1;
 			}
 			source.assign(std::istreambuf_iterator<char>(source_code), {});
@@ -122,7 +127,7 @@ int main(int argc, char **argv)
 		{
 			std::ifstream output_file(output_file_path);
 			if (!output_file) {
-				error("Cannot open output file ", output_file_path);
+				error("Cannot open output file {}"_format(output_file_path));
 				return 1;
 			}
 			output.assign(std::istreambuf_iterator<char>(output_file), {});
@@ -132,7 +137,7 @@ int main(int argc, char **argv)
 		{
 			rp::ipstream program_process(executable_path);
 			if (!program_process) {
-				error("Cannot execute program ", executable_path);
+				error("Cannot execute program {}"_format(executable_path));
 				return 1;
 			}
 			program.assign(std::istreambuf_iterator<char>(program_process), {});

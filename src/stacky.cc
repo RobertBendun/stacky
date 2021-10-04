@@ -18,9 +18,13 @@
 #include <unordered_set>
 #include <vector>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
+
 #include "errors.cc"
 #include "utilities.cc"
 
+using namespace fmt::literals;
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
@@ -43,6 +47,7 @@ struct Arguments
 	fs::path assembly;
 
 	bool warn_redefinitions = true;
+	bool verbose = false;
 
 	bool run_mode = false;
 };
@@ -369,7 +374,7 @@ auto main(int argc, char **argv) -> int
 		std::ifstream file_stream(path);
 
 		if (!file_stream) {
-			error("Source file ", std::quoted(path), " cannot be opened");
+			error("Source file '{}' cannot be opened"_format(path));
 			return 1;
 		}
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
@@ -401,7 +406,7 @@ auto main(int argc, char **argv) -> int
 		auto maybe_included = search_include_path(includer_path, included_path);
 
 		if (!maybe_included) {
-			error_fatal(tokens[offset + 1], "Cannot find file ", included_path);
+			error_fatal(tokens[offset + 1], "Cannot find file {}"_format(included_path.c_str()));
 			continue;
 		}
 
@@ -418,7 +423,7 @@ auto main(int argc, char **argv) -> int
 
 		std::ifstream file_stream(path);
 		if (!file_stream) {
-			error(tokens[offset + 1], "File ", path, " cannot be opened");
+			error(tokens[offset + 1], "File {} cannot be opened"_format(path.c_str()));
 			return 1;
 		}
 
