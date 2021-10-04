@@ -52,12 +52,10 @@ namespace optimizer
 			return !used_strings.contains(entry.second);
 		});
 
+		if (removed_words > 0)   verbose("Removed {} functions and arrays"_format(removed_words));
+		if (removed_strings > 0) verbose("Removed {} strings"_format(removed_strings));
+
 		return removed_words + removed_strings;
-		// TODO introduce verbose flag
-#if 0
-		std::cout << "Removed " << removed_words << " functions and arrays\n";
-		std::cout << "Removed " << removed_strings << " strings\n";
-#endif
 	}
 
 	auto optimize_comptime_known_conditions([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> &function_body) -> bool
@@ -82,8 +80,6 @@ namespace optimizer
 				continue;
 			done_something = true;
 
-			// report(Report::Info, branch.token, "optimizing");
-
 			switch (branch.kind) {
 			case Operation::Kind::Do:
 				{
@@ -95,9 +91,11 @@ namespace optimizer
 						function_body.erase(std::cbegin(function_body) + branch.jump, std::end(function_body));
 						function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch_op + 1);
 						remap(branch_op+1, end_op, 3);
+						verbose(branch.token, "Optimizing infinite loop (condition is always true)");
 					} else {
 						function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch.jump);
 						remap(end_op, -1, end_op - branch_op + 3);
+						verbose(branch.token, "Optimizing never executing loop (condition is always false)");
 					}
 
 					// find and remove `while`
@@ -127,6 +125,7 @@ namespace optimizer
 						}
 						remap(branch_op, end_or_else, 2); // `if` and condition
 						function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch_op + 1);
+						verbose(branch.token, "Optimizing always then `if` (conditions is always true)");
 					} else {
 						// Do `if` has else branch? If yes, remove `end` operation from it
 						if (end != else_op) {
@@ -136,6 +135,7 @@ namespace optimizer
 						// remove then branch and condition
 						function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + else_op + 1);
 						remap(end_or_else, -1, 3 + (end_or_else != end));
+						verbose(branch.token, "Optimizing always else `if` (condition is always false)");
 					}
 				}
 				break;

@@ -21,7 +21,6 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
-#include "errors.cc"
 #include "utilities.cc"
 
 using namespace fmt::literals;
@@ -244,6 +243,7 @@ struct Generation_Info
 	std::set<Label_Info> jump_targets_lookup;
 };
 
+#include "errors.cc"
 #include "unicode.cc"
 #include "arguments.cc"
 #include "lexer.cc"

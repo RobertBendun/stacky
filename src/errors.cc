@@ -17,6 +17,7 @@ enum class Report
 	Error,
 	Info,
 	Warning,
+	Optimization,
 };
 
 static bool Compilation_Failed = false;
@@ -24,12 +25,13 @@ static bool Compilation_Failed = false;
 inline std::string_view report_kind_str(Report r)
 {
 	switch (r) {
-	case Report::Command:       return  "cmd";
-	case Report::Error:         return  "error";
-	case Report::Info:          return  "info";
-	case Report::Warning:       return  "warning";
+	case Report::Command:       return "cmd";
+	case Report::Error:         return "error";
+	case Report::Info:          return "info";
+	case Report::Warning:       return "warning";
+	case Report::Optimization:  return "optimized";
 	default:
-	case Report::Compiler_Bug:  return  "compiler bug";
+	case Report::Compiler_Bug:  return "compiler bug";
 	}
 }
 
@@ -80,6 +82,11 @@ inline void warning(auto const& ...args)
 	report(Report::Warning, args...);
 }
 
+inline void info(auto const& ...args)
+{
+	report(Report::Info, args...);
+}
+
 inline void assert_impl(bool test, std::string_view test_str, std::source_location sl, auto const &msg = std::string_view{})
 {
 	if (test) return;
@@ -89,6 +96,8 @@ inline void assert_impl(bool test, std::string_view test_str, std::source_locati
 
 	exit(1);
 }
+
+#define verbose(...) do { if (compiler_arguments.verbose) info(__VA_ARGS__); } while(0)
 
 #ifdef assert
 #undef assert
