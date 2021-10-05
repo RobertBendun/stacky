@@ -29,7 +29,7 @@ end
 
 Print_Buffer Max_Digits10 []byte
 
-. fun # ( i64 -- )
+print-int fun # ( i64 -- )
 	dup digits10 tuck 1 - swap
 	while dup 10 >= do
 		over swap
@@ -42,5 +42,9 @@ Print_Buffer Max_Digits10 []byte
 	'0' + Print_Buffer swap store8
 	drop
 	Print_Buffer stdout SYS_write syscall3 drop
+end
+
+. fun
+	print-int
 	nl
 end
