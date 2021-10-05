@@ -389,11 +389,19 @@ constexpr auto type_name(Type const& type) -> std::string_view
 	return {};
 }
 
-void print_typestack_trace(Typestack& typestack)
+void print_typestack_trace(Typestack& typestack, std::string_view verb="unhandled")
 {
 	for (auto i = typestack.size() - 1u; i < typestack.size(); --i) {
 		auto const& t = typestack[i];
-		info(t.op->token, "unhandled value of type `{}` was defined here"_format(type_name(t)));
+		info(t.op->token, "{} value of type `{}` was defined here"_format(verb, type_name(t)));
+	}
+}
+
+void print_typestack_trace(auto begin, auto end, std::string_view verb="unhandled")
+{
+	for (end--; end != begin-1; --end) {
+		auto const& t = *end;
+		info(t.op->token, "{} value of type `{}` was defined here"_format(verb, type_name(t)));
 	}
 }
 
@@ -415,6 +423,7 @@ void unexpected_type(Operation const& op, Type::Kind exp1, Type::Kind exp2, Type
 
 void typecheck(std::vector<Operation> &ops)
 {
+	std::vector<std::tuple<Typestack, Operation::Kind>> blocks;
 	Typestack typestack;
 
 	auto const pop = [&typestack]() -> Type { auto retval = std::move(typestack.back()); typestack.pop_back(); return retval; };
@@ -640,6 +649,62 @@ void typecheck(std::vector<Operation> &ops)
 			case Intrinsic_Kind::Random64:
 				push(Type::Kind::Int, op);
 				break;
+			}
+			break;
+
+		case Operation::Kind::If:
+			ensure_enough_arguments(typestack, op, 1);
+			if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
+			pop();
+			blocks.push_back({ typestack, Operation::Kind::If });
+			break;
+
+		case Operation::Kind::Else:
+			{
+				// move onto blocks then branch result stack
+				// reset typestack into pre-if form
+				auto [before_if, if_kind] = std::move(blocks.back());
+				blocks.pop_back();
+				assert(if_kind == Operation::Kind::If);
+				blocks.push_back({ typestack, Operation::Kind::Else });
+				typestack = std::move(before_if);
+			}
+			break;
+
+
+		case Operation::Kind::End:
+			{
+				assert(!blocks.empty());
+				auto const& [types, opened] = blocks.back();
+
+				switch (opened) {
+				case Operation::Kind::If:
+					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack), [](auto const &expected, auto const& actual) {
+								return expected.kind == actual.kind; }); e != std::cend(types) || a != std::cend(typestack)) {
+						error(op.token, "`if` without `else` should have the same type stack shape before and after execution");
+
+						if (types.size() != typestack.size()) {
+							if (e == std::cend(types)) {
+								info("there are {} excess values on the stack"_format(std::distance(a, std::cend(typestack))));
+								print_typestack_trace(a, std::cend(typestack), "excess");
+							} else {
+								info("there are missing {} values on the stack"_format(std::distance(e, std::cend(types))));
+								print_typestack_trace(e, std::cend(types), "missing");
+							}
+						} else {
+							// stacks are equal in size, so difference is in types not their amount
+							for (; e != std::cend(types) && a != std::cend(typestack); ++e, ++a) {
+								if (e->kind == a->kind) continue;
+								unexpected_type(op, *e, *a);
+							}
+						}
+						exit(1);
+					}
+					break;
+
+				default:
+					assert_msg(false, "unimplemented");
+				}
 			}
 			break;
 
