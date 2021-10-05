@@ -80,14 +80,23 @@ auto lex(std::string_view const file, std::string_view const path, std::vector<T
 
 		if (ch == '"' || ch == '\'') {
 			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;
-			auto const str_end = std::adjacent_find(std::cbegin(file) + i + 1, std::cend(file), [terminating = ch](auto const& prev, auto const& current) {
-				return prev != '\\' && current == terminating;
-			});
 
-			if (str_end == std::cend(file))
-				error(token, "Missing terminating `{}` character."_format(ch));
+			if (i + 1 > file.size())
+				error_fatal(token, "Missing terminating `{}` character"_format(ch));
 
-			token.sval = { std::cbegin(file) + i, str_end + 2 };
+			if (file[i+1] == ch) {
+				if (ch == '\'') error_fatal(token, "Empty character literals are invalid");
+				else token.sval = "\"\"";
+			} else {
+				auto const str_end = std::adjacent_find(std::cbegin(file) + i + 1, std::cend(file), [terminating = ch](auto const& prev, auto const& current) {
+					return prev != '\\' && current == terminating;
+				});
+
+				if (str_end == std::cend(file))
+					error_fatal(token, "Missing terminating `{}` character."_format(ch));
+				else
+					token.sval = { std::cbegin(file) + i, str_end + 2 };
+			}
 		} else {
 			auto const start = std::cbegin(file) + i;
 			auto const first_ws = std::find_if(start, std::cend(file), static_cast<int(*)(int)>(std::isspace));
