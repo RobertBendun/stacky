@@ -1,6 +1,21 @@
 # stacky
 
-**WIP** stack-based compiled programming language with purpose of beeing a learning expirience. **Currently Linux-only**
+**WIP** stack-based compiled concatenative programming language.
+
+Currently it's somewhere between [B](https://en.wikipedia.org/wiki/B_(programming_language)) and [C](https://en.wikipedia.org/wiki/C_(programming_language)) programming languages in universe where B was stack based concatenative language.
+
+## Goals
+
+In mostly random order:
+- [x] Easy to expand with new keywords and intrinsics
+- [x] Turing complete
+- [ ] Static type system (currently beeing developed)
+- [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky)
+- [ ] Compile time code execution
+- [ ] Multiplatform (at least supporting Linux ARM and x86\_64)
+- [ ] Ability to interact with C code (but not depending on it)
+
+with some basic optimizations and good error reporting.
 
 ## Example
 ### hello, world
@@ -152,6 +167,6 @@ pacman -S gcc binutils nasm boost
 
 ## See also
 
-- Tsoding [Porth](https://github.com/tsoding/porth)
+- Tsoding [Porth](https://github.com/tsoding/porth) (main inspiration for starting this project)
 - Classic stack based language [Forth](https://en.wikipedia.org/wiki/Forth_(programming_language))
 - Modern stack based functional language [Factor](https://en.wikipedia.org/wiki/Factor_(programming_language))
