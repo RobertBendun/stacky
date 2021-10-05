@@ -47,6 +47,7 @@ struct Arguments
 
 	bool warn_redefinitions = true;
 	bool verbose = false;
+	bool typecheck = false;
 
 	bool run_mode = false;
 };
@@ -363,6 +364,301 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 	}
 }
 
+struct Type
+{
+	enum class Kind
+	{
+		Int,
+		Bool,
+		Pointer,
+	};
+
+	Kind kind;
+	Operation const* op = nullptr;
+};
+
+using Typestack = std::vector<Type>;
+
+constexpr auto type_name(Type const& type) -> std::string_view
+{
+	switch (type.kind) {
+	case Type::Kind::Int: return "u64";
+	case Type::Kind::Bool: return "bool";
+	case Type::Kind::Pointer: return "ptr";
+	}
+	return {};
+}
+
+void print_typestack_trace(Typestack& typestack)
+{
+	for (auto i = typestack.size() - 1u; i < typestack.size(); --i) {
+		auto const& t = typestack[i];
+		info(t.op->token, "unhandled value of type `{}` was defined here"_format(type_name(t)));
+	}
+}
+
+void ensure_enough_arguments(Typestack& typestack, Operation const& op, unsigned argc)
+{
+	if (typestack.size() < argc)
+		error_fatal("`{}` requires {} arguments on stack"_format(op.token.sval, argc));
+}
+
+void unexpected_type(Operation const& op, Type const& expected, Type const& found)
+{
+	error_fatal(op.token, "expected type `{}` but found `{}` for `{}`"_format(type_name(expected), type_name(found), op.token.sval));
+}
+
+void unexpected_type(Operation const& op, Type::Kind exp1, Type::Kind exp2, Type const& found)
+{
+	error_fatal(op.token, "expected type `{}` or `{}` but found `{}` for `{}`"_format(type_name({ exp1 }), type_name({ exp2 }), type_name(found), op.token.sval));
+}
+
+void typecheck(std::vector<Operation> &ops)
+{
+	Typestack typestack;
+
+	auto const pop = [&typestack]() -> Type { auto retval = std::move(typestack.back()); typestack.pop_back(); return retval; };
+	auto const push = [&typestack](Type::Kind kind, Operation const& op) { typestack.push_back({ kind, &op }); };
+	auto const top = [&typestack](unsigned offset = 0) -> Type& {	return typestack[typestack.size() - offset - 1]; };
+
+	for (auto const& op : ops) {
+		switch (op.kind) {
+		case Operation::Kind::Push_Symbol:
+			typestack.push_back({ Type::Kind::Pointer, &op });
+			break;
+
+		case Operation::Kind::Push_Int:
+			typestack.push_back({ Type::Kind::Int, &op });
+			break;
+
+		case Operation::Kind::Intrinsic:
+			switch (op.intrinsic) {
+			case Intrinsic_Kind::Add:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+
+					if (lhs.kind == rhs.kind) {
+						if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
+						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
+						push(lhs.kind, op);
+					} else if (lhs.kind == Type::Kind::Int) {
+						if (rhs.kind != Type::Kind::Pointer) unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, rhs);
+						push(Type::Kind::Pointer, op);
+					} else if (lhs.kind == Type::Kind::Pointer) {
+						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
+						push(Type::Kind::Pointer, op);
+					} else {
+						unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
+					}
+				}
+				break;
+
+			case Intrinsic_Kind::Subtract:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+
+					if (lhs.kind == rhs.kind) {
+						if (lhs.kind != Type::Kind::Int && lhs.kind != Type::Kind::Pointer)
+							unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
+						push(lhs.kind, op);
+					} else if (lhs.kind == Type::Kind::Pointer) {
+						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
+						push(Type::Kind::Pointer, op);
+					} else if (rhs.kind == Type::Kind::Pointer) {
+						unexpected_type(op, { Type::Kind::Int }, rhs);
+					} else {
+						unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
+					}
+				}
+				break;
+
+			case Intrinsic_Kind::Equal:
+			case Intrinsic_Kind::Not_Equal:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+					if (lhs.kind != rhs.kind) {
+						unexpected_type(op, lhs, rhs);
+					}
+					push(Type::Kind::Bool, op);
+				}
+				break;
+
+			case Intrinsic_Kind::Boolean_And:
+			case Intrinsic_Kind::Boolean_Or:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+					if (lhs.kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, lhs);
+					if (rhs.kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, rhs);
+					push(Type::Kind::Bool, op);
+				}
+				break;
+
+			case Intrinsic_Kind::Boolean_Negate:
+				{
+					ensure_enough_arguments(typestack, op, 1);
+					if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
+					top().op = &op;
+				}
+				break;
+
+			case Intrinsic_Kind::Greater:
+			case Intrinsic_Kind::Greater_Eq:
+			case Intrinsic_Kind::Less:
+			case Intrinsic_Kind::Less_Eq:
+			case Intrinsic_Kind::Mul:
+			case Intrinsic_Kind::Mod:
+			case Intrinsic_Kind::Div:
+			case Intrinsic_Kind::Min:
+			case Intrinsic_Kind::Max:
+			case Intrinsic_Kind::Bitwise_And:
+			case Intrinsic_Kind::Bitwise_Or:
+			case Intrinsic_Kind::Bitwise_Xor:
+			case Intrinsic_Kind::Left_Shift:
+			case Intrinsic_Kind::Right_Shift:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
+						unexpected_type(op, lhs, rhs);
+					}
+					push(Type::Kind::Int, op);
+				}
+				break;
+
+			case Intrinsic_Kind::Div_Mod:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = top();
+					auto const& lhs = top(1);
+					if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
+					if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
+					top(1).op = top().op = &op;
+				}
+				break;
+
+			case Intrinsic_Kind::Drop:
+				ensure_enough_arguments(typestack, op, 1);
+				typestack.pop_back();
+				break;
+
+			case Intrinsic_Kind::Dup:
+				ensure_enough_arguments(typestack, op, 1);
+				push(top().kind, op);
+				break;
+
+			case Intrinsic_Kind::Swap:
+				ensure_enough_arguments(typestack, op, 2);
+				std::swap(top(), top(1));
+				break;
+
+			case Intrinsic_Kind::Over:
+				ensure_enough_arguments(typestack, op, 2);
+				push(top(1).kind, op);
+				break;
+
+			case Intrinsic_Kind::Rot:
+				ensure_enough_arguments(typestack, op, 3);
+				std::swap(top(), top(2));
+				std::swap(top(1), top(2));
+				break;
+
+			case Intrinsic_Kind::Tuck:
+				ensure_enough_arguments(typestack, op, 2);
+				push(top(0).kind, op);
+				std::swap(top(1), top(2));
+				break;
+
+			case Intrinsic_Kind::Two_Dup:
+				ensure_enough_arguments(typestack, op, 2);
+				push(top(1).kind, op);
+				push(top(1).kind, op);
+				break;
+
+			case Intrinsic_Kind::Two_Drop:
+				ensure_enough_arguments(typestack, op, 2);
+				pop();
+				pop();
+				break;
+
+			case Intrinsic_Kind::Two_Over:
+				ensure_enough_arguments(typestack, op, 4);
+				push(top(3).kind, op);
+				push(top(3).kind, op);
+				break;
+
+			case Intrinsic_Kind::Two_Swap:
+				ensure_enough_arguments(typestack, op, 4);
+				std::swap(top(3), top(1));
+				std::swap(top(2), top());
+				break;
+
+			case Intrinsic_Kind::Load:
+				ensure_enough_arguments(typestack, op, 1);
+				if (auto t = pop(); t.kind != Type::Kind::Pointer) unexpected_type(op, { Type::Kind::Pointer }, t);
+				push(Type::Kind::Int, op);
+				break;
+
+			case Intrinsic_Kind::Store:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const addr = pop();
+					auto const val = pop();
+					if (addr.kind != Type::Kind::Pointer) unexpected_type(op, { Type::Kind::Pointer }, addr);
+					if (val.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, addr);
+				}
+				break;
+
+			case Intrinsic_Kind::Top:
+				push(Type::Kind::Pointer, op);
+				break;
+
+			case Intrinsic_Kind::Call:
+				error(op.token, "`call` is not supported by typechecking");
+				break;
+
+			case Intrinsic_Kind::Syscall:
+				{
+					assert(op.token.sval[7] >= '0' && op.token.sval[7] <= '6');
+					unsigned syscall_count = op.token.sval[7] - '0';
+					ensure_enough_arguments(typestack, op, syscall_count + 1);
+					if (auto t = pop(); t.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, t);
+					for (; syscall_count > 0; --syscall_count) pop();
+					push(Type::Kind::Int, op);
+				}
+				break;
+
+			case Intrinsic_Kind::Random32:
+			case Intrinsic_Kind::Random64:
+				push(Type::Kind::Int, op);
+				break;
+			}
+			break;
+
+#if 1
+		default:
+			assert_msg(false, "unimplemented");
+			;
+#endif
+		}
+	}
+
+	if (typestack.empty())
+		return;
+
+	error(ops.back().token, "{} values has been left on the stack"_format(typestack.size()));
+	print_typestack_trace(typestack);
+	exit(1);
+}
+
 auto main(int argc, char **argv) -> int
 {
 	parse_arguments(argc, argv);
@@ -453,6 +749,9 @@ auto main(int argc, char **argv) -> int
 	parser::transform_into_operations(tokens, geninfo.main, geninfo.words);
 	if (Compilation_Failed)
 		return 1;
+
+	if (compiler_arguments.typecheck)
+		typecheck(geninfo.main);
 
 	optimizer::optimize(geninfo);
 	generate_jump_targets_lookup(geninfo);

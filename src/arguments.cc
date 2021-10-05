@@ -20,6 +20,7 @@ void parse_arguments(int argc, char **argv)
 		("help,h", "produce help message")
 		("verbose,V", "print all unnesesary info during compilation")
 		("version,v", "print version of compiler")
+		("check,c", "type check program")
 	;
 
 	po::options_description build("Build options");
@@ -103,6 +104,6 @@ void parse_arguments(int argc, char **argv)
 	compiler_arguments.compiler = fs::canonical("/proc/self/exe");
 	compiler_arguments.include_search_paths.push_back(compiler_arguments.compiler.parent_path() / "std");
 
-
 	compiler_arguments.verbose = vm.count("verbose");
+	compiler_arguments.typecheck = vm.count("check");
 }
