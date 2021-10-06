@@ -134,6 +134,7 @@ namespace parser
 			case Keyword_Kind::Return:
 			case Keyword_Kind::While:
 			case Keyword_Kind::Bool:
+			case Keyword_Kind::Typename:
 				break;
 
 			case Keyword_Kind::Function:
@@ -378,6 +379,19 @@ namespace parser
 							op.type = Type::Kind::Bool;
 						}
 						break;
+
+					case Keyword_Kind::Typename:
+						{
+							auto &op = body.emplace_back(Operation::Kind::Cast);
+							op.token = token;
+							switch (token.sval[0]) {
+							case 'b': op.type = Type::Kind::Bool; break;
+							case 'p': op.type = Type::Kind::Pointer; break;
+							case 'u': op.type = Type::Kind::Int; break;
+							}
+						}
+						break;
+
 					case Keyword_Kind::End:
 						{
 							unsigned j, end_stack = 1;

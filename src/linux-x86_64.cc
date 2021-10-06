@@ -268,6 +268,9 @@ namespace linux::x86_64 {
 			case Operation::Kind::Intrinsic:
 				emit_intrinsic(op, asm_file);
 				break;
+			case Operation::Kind::Cast:
+				asm_file << "	;; cast " << op.token.sval << "\n";
+				break;
 			case Operation::Kind::Call_Symbol:
 				asm_file << "	;; call symbol\n";
 				asm_file << "	call " << Function_Prefix << op.ival << '\n';

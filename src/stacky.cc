@@ -72,6 +72,7 @@ enum class Keyword_Kind
 	Import,
 	Return,
 	Bool,
+	Typename,
 
 	// Definitions
 	Array,
@@ -110,6 +111,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "[]u64"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
 	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
+	std::tuple { "bool"sv,      Keyword_Kind::Typename },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },
 	std::tuple { "else"sv,      Keyword_Kind::Else },
@@ -119,8 +121,10 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "if"sv,        Keyword_Kind::If },
 	std::tuple { "import"sv,    Keyword_Kind::Import },
 	std::tuple { "include"sv,   Keyword_Kind::Include },
+	std::tuple { "ptr"sv,       Keyword_Kind::Typename },
 	std::tuple { "return"sv,    Keyword_Kind::Return },
 	std::tuple { "true"sv,      Keyword_Kind::Bool },
+	std::tuple { "u64"sv,       Keyword_Kind::Typename },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
@@ -197,6 +201,7 @@ struct Operation
 		Push_Symbol,
 		Push_Int,
 		Call_Symbol,
+		Cast,
 		End,
 		If,
 		Else,
@@ -444,6 +449,12 @@ void typecheck(std::vector<Operation> &ops)
 
 		case Operation::Kind::Push_Int:
 			typestack.push_back({ op.type, &op });
+			break;
+
+		case Operation::Kind::Cast:
+			ensure_enough_arguments(typestack, op, 1);
+			pop();
+			push(op.type, op);
 			break;
 
 		case Operation::Kind::Intrinsic:
@@ -737,11 +748,11 @@ void typecheck(std::vector<Operation> &ops)
 			}
 			break;
 
-#if 1
-		default:
+		case Operation::Kind::Call_Symbol:
+		case Operation::Kind::Do:
+		case Operation::Kind::While:
+		case Operation::Kind::Return:
 			assert_msg(false, "unimplemented");
-			;
-#endif
 		}
 	}
 
