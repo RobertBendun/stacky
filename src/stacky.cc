@@ -71,6 +71,7 @@ enum class Keyword_Kind
 	Include,
 	Import,
 	Return,
+	Bool,
 
 	// Definitions
 	Array,
@@ -102,6 +103,7 @@ struct Token
 };
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
+	std::tuple { "&fun"sv,      Keyword_Kind::Function },
 	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
@@ -112,12 +114,13 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "do"sv,        Keyword_Kind::Do },
 	std::tuple { "else"sv,      Keyword_Kind::Else },
 	std::tuple { "end"sv,       Keyword_Kind::End },
+	std::tuple { "false"sv,     Keyword_Kind::Bool },
 	std::tuple { "fun"sv,       Keyword_Kind::Function },
-	std::tuple { "&fun"sv,      Keyword_Kind::Function },
 	std::tuple { "if"sv,        Keyword_Kind::If },
-	std::tuple { "include"sv,   Keyword_Kind::Include },
 	std::tuple { "import"sv,    Keyword_Kind::Import },
+	std::tuple { "include"sv,   Keyword_Kind::Include },
 	std::tuple { "return"sv,    Keyword_Kind::Return },
+	std::tuple { "true"sv,      Keyword_Kind::Bool },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
@@ -173,6 +176,19 @@ enum class Intrinsic_Kind
 		Last = Syscall,
 };
 
+struct Type
+{
+	enum class Kind
+	{
+		Int,
+		Bool,
+		Pointer,
+	};
+
+	Kind kind;
+	struct Operation const* op = nullptr;
+};
+
 struct Operation
 {
 	enum class Kind
@@ -199,6 +215,8 @@ struct Operation
 	unsigned jump = Empty_Jump;
 
 	std::string_view symbol_prefix;
+
+	Type::Kind type;
 };
 
 struct Word
@@ -364,18 +382,6 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 	}
 }
 
-struct Type
-{
-	enum class Kind
-	{
-		Int,
-		Bool,
-		Pointer,
-	};
-
-	Kind kind;
-	Operation const* op = nullptr;
-};
 
 using Typestack = std::vector<Type>;
 
@@ -437,7 +443,7 @@ void typecheck(std::vector<Operation> &ops)
 			break;
 
 		case Operation::Kind::Push_Int:
-			typestack.push_back({ Type::Kind::Int, &op });
+			typestack.push_back({ op.type, &op });
 			break;
 
 		case Operation::Kind::Intrinsic:

@@ -133,6 +133,7 @@ namespace parser
 			case Keyword_Kind::Import:
 			case Keyword_Kind::Return:
 			case Keyword_Kind::While:
+			case Keyword_Kind::Bool:
 				break;
 
 			case Keyword_Kind::Function:
@@ -296,6 +297,7 @@ namespace parser
 					auto &op = body.emplace_back(Operation::Kind::Push_Int);
 					op.token = token;
 					op.ival = 0;
+					op.type = Type::Kind::Bool;
 
 					parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2),
 							[&token, value = &op.ival, offset = 0](char c) mutable {
@@ -315,6 +317,7 @@ namespace parser
 					auto &op = body.emplace_back(Operation::Kind::Push_Int);
 					op.ival = token.ival;
 					op.token = token;
+					op.type = Type::Kind::Int;
 				}
 				break;
 
@@ -367,6 +370,14 @@ namespace parser
 			case Token::Kind::Keyword:
 				{
 					switch (token.kval) {
+					case Keyword_Kind::Bool:
+						{
+							auto &op = body.emplace_back(Operation::Kind::Push_Int);
+							op.ival = token.sval[0] == 't';
+							op.token = token;
+							op.type = Type::Kind::Bool;
+						}
+						break;
 					case Keyword_Kind::End:
 						{
 							unsigned j, end_stack = 1;

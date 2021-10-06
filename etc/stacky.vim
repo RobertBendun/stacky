@@ -30,6 +30,9 @@ syn keyword stackyMemory store8 store16 store32 store64 load8 load16 load32 load
 syn keyword stackyOS syscall0 syscall1 syscall2 syscall3 syscall4 syscall5 syscall6 random32 random64
 
 " Literals
+
+syn keyword stackyConstant true false
+
 syn match stackyInteger '\<-\=[0-9]\+.\=\>'
 
 syn match	stackySpecial	display contained "\\\(x\x\+\|\o\{1,3}\|.\|$\)"
@@ -58,5 +61,6 @@ hi def link stackyString String
 hi def link stackyCharacter Character
 hi def link stackySpecial SpecialChar
 hi def link stackyInteger Number
+hi def link stackyConstant Constant
 hi def link stackyComment Comment
 hi def link stackyBlocks Statement
