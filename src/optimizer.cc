@@ -129,7 +129,7 @@ namespace optimizer
 					} else {
 						// Do `if` has else branch? If yes, remove `end` operation from it
 						if (end != else_op) {
-							function_body.erase(std::cbegin(function_body) + end);
+							function_body.erase(std::cbegin(function_body) + end + 1);
 						}
 
 						// remove then branch and condition
