@@ -702,6 +702,29 @@ void typecheck(std::vector<Operation> &ops)
 					}
 					break;
 
+				case Operation::Kind::Else:
+					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack), [](auto const &expected, auto const& actual) {
+								return expected.kind == actual.kind; }); e != std::cend(types) || a != std::cend(typestack)) {
+						error(op.token, "`if` ... `else` and `else` ... `end` branches must have matching typestacks");
+						if (types.size() != typestack.size()) {
+							if (e == std::cend(types)) {
+								info("there are {} excess values in `else` branch"_format(std::distance(a, std::cend(typestack))));
+								print_typestack_trace(a, std::cend(typestack), "excess");
+							} else {
+								info("there are missing {} values in `else` branch"_format(std::distance(e, std::cend(types))));
+								print_typestack_trace(e, std::cend(types), "missing");
+							}
+						} else {
+							// stacks are equal in size, so difference is in types not their amount
+							for (; e != std::cend(types) && a != std::cend(typestack); ++e, ++a) {
+								if (e->kind == a->kind) continue;
+								unexpected_type(op, *e, *a);
+							}
+						}
+						exit(1);
+					}
+					break;
+
 				default:
 					assert_msg(false, "unimplemented");
 				}
