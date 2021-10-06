@@ -422,7 +422,7 @@ namespace parser
 						case Keyword_Kind::Include: assert_msg(false, "unreachable"); break; // all includes should be eliminated by now
 						case Keyword_Kind::Array:    i -= 2; break;
 						case Keyword_Kind::Constant: i -= 2; break;
-						case Keyword_Kind::Function: assert_msg(false, "unreachable"); break;
+						case Keyword_Kind::Function: error_fatal(token, "Missing `end` for this function definition"); break;
 
 						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do, token);     break;
 						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else, token);   break;
