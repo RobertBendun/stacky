@@ -14,6 +14,8 @@ setlocal iskeyword=!,@,33-35,%,$,38-64,A-Z,91-96,a-z,123-126,128-255
 
 syn keyword stackyIncludes include import
 
+syn keyword stackyType bool ptr u64
+
 syn keyword stackyDefinitions constant fun &fun
 syn match stackyDefinitions '\[\]byte'
 syn match stackyDefinitions '\[\]u8'
@@ -48,19 +50,20 @@ syn match stackyComment "#.*$" contains=stackyDotCompare
 
 let b:current_syntax = "stacky"
 
-hi def link stackyTodo Todo
-hi def link stackyIncludes Include
-hi def link stackyDotCompare SpecialComment
-hi def link stackyDefinitions Define
-hi def link stackyStack Special
-hi def link stackyMemory Identifier
-hi def link stackyOS Identifier
-hi def link stackyOperators Operator
-hi def link stackyWord Identifier
-hi def link stackyString String
-hi def link stackyCharacter Character
-hi def link stackySpecial SpecialChar
-hi def link stackyInteger Number
-hi def link stackyConstant Constant
-hi def link stackyComment Comment
-hi def link stackyBlocks Statement
+hi  def  link  stackyTodo         Todo
+hi  def  link  stackyIncludes     Include
+hi  def  link  stackyDotCompare   SpecialComment
+hi  def  link  stackyDefinitions  Define
+hi  def  link  stackyStack        Special
+hi  def  link  stackyMemory       Identifier
+hi  def  link  stackyOS           Identifier
+hi  def  link  stackyOperators    Operator
+hi  def  link  stackyWord         Identifier
+hi  def  link  stackyString       String
+hi  def  link  stackyCharacter    Character
+hi  def  link  stackySpecial      SpecialChar
+hi  def  link  stackyInteger      Number
+hi  def  link  stackyType         Type
+hi  def  link  stackyConstant     Constant
+hi  def  link  stackyComment      Comment
+hi  def  link  stackyBlocks       Statement
