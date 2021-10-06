@@ -1,6 +1,27 @@
 # From https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+# max min
 uniform32 fun
 	over swap
 	swap - 1 +  # remap from [a, b] to [0, N] where N = distance(a, b)
 	random32 * 32 >> +
+end
+
+pswap32 fun
+	2dup load32 swap load32 rot swap store32 store32
+end
+
+# ptr ptr
+2load32 fun
+	load32 swap load32 swap
+end
+
+# length pointer
+print-array32 fun
+	begin-end-32
+	"[ " print
+	while 2dup != do
+		dup load32 print-int " " print
+		4 +
+	end
+	"]" println
 end

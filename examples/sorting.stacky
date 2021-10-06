@@ -1,0 +1,43 @@
+"algorithm" import
+"io" import
+
+begin-end-32 fun
+	dup rot 4 * + swap
+end
+
+# max min n p
+fill-with-random fun
+	begin-end-32
+	while 2dup != do
+		2over uniform32 over swap store32
+		4 +
+	end
+	2drop # drop begin and end
+	2drop # drop max and min
+end
+
+# length pointer
+sort fun
+	begin-end-32
+	while 2dup 4 + != do
+		2dup 4 +
+		while 2dup != do
+			rot 2dup 2dup 2load32 < if
+				pswap32
+			else
+				2drop
+			end
+			rot swap 2swap
+			4 +
+		end 2drop
+		4 +
+	end 2drop
+end
+
+Numbers-Count 10 constant
+Numbers Numbers-Count []u32
+
+10 1 Numbers-Count Numbers fill-with-random
+Numbers-Count Numbers print-array32
+Numbers-Count Numbers sort
+Numbers-Count Numbers print-array32
