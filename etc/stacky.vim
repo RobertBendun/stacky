@@ -14,7 +14,9 @@ setlocal iskeyword=!,@,33-35,%,$,38-64,A-Z,91-96,a-z,123-126,128-255
 
 syn keyword stackyIncludes include import
 
-syn keyword stackyType bool ptr u64
+syn keyword stackyType bool ptr
+syn keyword stackyType i8 i16 i32 i64
+syn keyword stackyType u8 u16 u32 u64
 
 syn keyword stackyDefinitions constant fun &fun
 syn match stackyDefinitions '\[\]byte'
@@ -35,7 +37,11 @@ syn keyword stackyOS syscall0 syscall1 syscall2 syscall3 syscall4 syscall5 sysca
 
 syn keyword stackyConstant true false
 
-syn match stackyInteger '\<-\=[0-9]\+.\=\>'
+syn match stackyInteger display "\<[0-9][0-9_]*\%([iu]\%(8\|16\|32\|64\)\)\="
+syn match stackyInteger display "\<0o[0-7_]\+\%([iu]\%(8\|16\|32\|64\)\)\="
+syn match stackyInteger display "\<0x[a-fA-F0-9_]\+\%([iu]\%(8\|16\|32\|64\)\)\="
+syn match stackyInteger display "\<0o[0-7_]\+\%([iu]\%(8\|16\|32\|64\)\)\="
+syn match stackyInteger display "\<0b[01_]\+\%([iu]\%(8\|16\|32\|64\)\)\="
 
 syn match	stackySpecial	display contained "\\\(x\x\+\|\o\{1,3}\|.\|$\)"
 syn match	stackySpecial	display contained "\\\(u\x\{4}\|U\x\{8}\)"
