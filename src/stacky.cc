@@ -214,6 +214,13 @@ struct Type
 
 	auto operator!=(Type const& other) const { return !this->operator==(other); }
 
+	auto with_op(struct Operation const* op) const
+	{
+		auto copy = *this;
+		copy.op = op;
+		return copy;
+	}
+
 	Kind kind;
 	struct Operation const* op = nullptr;
 	bool is_unsigned = false;
@@ -465,6 +472,11 @@ void unexpected_type(Operation const& op, Type::Kind exp1, Type::Kind exp2, Type
 	error_fatal(op.token, "expected type `{}` or `{}` but found `{}` for `{}`"_format(type_name({ exp1 }), type_name({ exp2 }), type_name(found), op.token.sval));
 }
 
+void unexpected_sign(Operation const& op, Type const& expected, Type const& found)
+{
+	error_fatal(op.token, "expected {} integer, found `{}`"_format(expected.is_unsigned ? "unsigned" : "signed", type_name(found)));
+}
+
 void typecheck(std::vector<Operation> &ops)
 {
 	std::vector<std::tuple<Typestack, Operation::Kind>> blocks;
@@ -473,6 +485,21 @@ void typecheck(std::vector<Operation> &ops)
 	auto const pop = [&typestack]() -> Type { auto retval = std::move(typestack.back()); typestack.pop_back(); return retval; };
 	auto const push = [&typestack](Type::Kind kind, Operation const& op) { typestack.push_back({ kind, &op }); };
 	auto const top = [&typestack](unsigned offset = 0) -> Type& {	return typestack[typestack.size() - offset - 1]; };
+
+	auto const int_binop = [&typestack](Operation const& op, Type lhs, Type const& rhs, bool emit_value = true)
+	{
+		if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
+		if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
+
+		if (lhs.is_unsigned != rhs.is_unsigned)
+			unexpected_sign(op, lhs, rhs);
+
+		if (emit_value) {
+			lhs.byte_size = std::max(lhs.byte_size, rhs.byte_size);
+			lhs.op = &op;
+			typestack.push_back(lhs);
+		}
+	};
 
 	for (auto const& op : ops) {
 		switch (op.kind) {
@@ -499,13 +526,11 @@ void typecheck(std::vector<Operation> &ops)
 			case Intrinsic_Kind::Add:
 				{
 					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
+					auto rhs = pop();
+					auto lhs = pop();
 
 					if (lhs.kind == rhs.kind) {
-						if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
-						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
-						push(lhs.kind, op);
+						int_binop(op, lhs, rhs);
 					} else if (lhs.kind == Type::Kind::Int) {
 						if (rhs.kind != Type::Kind::Pointer) unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, rhs);
 						push(Type::Kind::Pointer, op);
@@ -525,9 +550,12 @@ void typecheck(std::vector<Operation> &ops)
 					auto const& lhs = pop();
 
 					if (lhs.kind == rhs.kind) {
-						if (lhs.kind != Type::Kind::Int && lhs.kind != Type::Kind::Pointer)
+						if (lhs.kind == Type::Kind::Int)
+							int_binop(op, lhs, rhs);
+						else if (lhs.kind == Type::Kind::Pointer)
+							push(Type::Kind::Int, op);
+						else
 							unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
-						push(lhs.kind, op);
 					} else if (lhs.kind == Type::Kind::Pointer) {
 						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
 						push(Type::Kind::Pointer, op);
@@ -548,6 +576,8 @@ void typecheck(std::vector<Operation> &ops)
 					if (lhs.kind != rhs.kind) {
 						unexpected_type(op, lhs, rhs);
 					}
+					if (lhs.kind == Type::Kind::Int && lhs.is_unsigned != rhs.is_unsigned)
+						unexpected_sign(op, lhs, rhs);
 					push(Type::Kind::Bool, op);
 				}
 				break;
@@ -586,11 +616,7 @@ void typecheck(std::vector<Operation> &ops)
 					ensure_enough_arguments(typestack, op, 2);
 					auto rhs = pop();
 					auto lhs = pop();
-					if (lhs != rhs || lhs.kind != Type::Kind::Int) {
-						unexpected_type(op, lhs, rhs);
-					}
-					lhs.op = &op;
-					typestack.push_back(lhs);
+					int_binop(op, lhs, rhs);
 				}
 				break;
 
@@ -605,6 +631,8 @@ void typecheck(std::vector<Operation> &ops)
 					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
 						unexpected_type(op, lhs, rhs);
 					}
+					if (lhs.is_unsigned != rhs.is_unsigned)
+						return unexpected_sign(op, lhs, rhs);
 					push(Type::Kind::Bool, op);
 				}
 				break;
@@ -612,11 +640,11 @@ void typecheck(std::vector<Operation> &ops)
 			case Intrinsic_Kind::Div_Mod:
 				{
 					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = top();
-					auto const& lhs = top(1);
-					if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
-					if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
-					top(1).op = top().op = &op;
+					auto &rhs = top();
+					auto &lhs = top(1);
+					int_binop(op, lhs, rhs, false);
+					lhs.op = rhs.op = &op;
+					lhs.byte_size = rhs.byte_size = std::max(lhs.byte_size, rhs.byte_size);
 				}
 				break;
 
@@ -627,7 +655,7 @@ void typecheck(std::vector<Operation> &ops)
 
 			case Intrinsic_Kind::Dup:
 				ensure_enough_arguments(typestack, op, 1);
-				push(top().kind, op);
+				typestack.push_back(top().with_op(&op));
 				break;
 
 			case Intrinsic_Kind::Swap:
@@ -637,7 +665,7 @@ void typecheck(std::vector<Operation> &ops)
 
 			case Intrinsic_Kind::Over:
 				ensure_enough_arguments(typestack, op, 2);
-				push(top(1).kind, op);
+				typestack.push_back(top(1).with_op(&op));
 				break;
 
 			case Intrinsic_Kind::Rot:
@@ -648,14 +676,14 @@ void typecheck(std::vector<Operation> &ops)
 
 			case Intrinsic_Kind::Tuck:
 				ensure_enough_arguments(typestack, op, 2);
-				push(top(0).kind, op);
+				typestack.push_back(top().with_op(&op));
 				std::swap(top(1), top(2));
 				break;
 
 			case Intrinsic_Kind::Two_Dup:
 				ensure_enough_arguments(typestack, op, 2);
-				push(top(1).kind, op);
-				push(top(1).kind, op);
+				typestack.push_back(top(1).with_op(&op));
+				typestack.push_back(top(1).with_op(&op));
 				break;
 
 			case Intrinsic_Kind::Two_Drop:
@@ -666,8 +694,8 @@ void typecheck(std::vector<Operation> &ops)
 
 			case Intrinsic_Kind::Two_Over:
 				ensure_enough_arguments(typestack, op, 4);
-				push(top(3).kind, op);
-				push(top(3).kind, op);
+				typestack.push_back(top(3).with_op(&op));
+				typestack.push_back(top(3).with_op(&op));
 				break;
 
 			case Intrinsic_Kind::Two_Swap:
@@ -713,7 +741,14 @@ void typecheck(std::vector<Operation> &ops)
 
 			case Intrinsic_Kind::Random32:
 			case Intrinsic_Kind::Random64:
-				push(Type::Kind::Int, op);
+				{
+					Type t;
+					t.kind = Type::Kind::Int;
+					t.op = &op;
+					t.is_unsigned = true;
+					t.byte_size = op.intrinsic == Intrinsic_Kind::Random32 ? 4 : 8;
+					typestack.push_back(t);
+				}
 				break;
 			}
 			break;
