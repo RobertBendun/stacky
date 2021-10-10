@@ -797,8 +797,14 @@ void typecheck(std::vector<Operation> &ops)
 					}
 					break;
 
-				default:
-					assert_msg(false, "unimplemented end");
+				case Operation::Kind::Call_Symbol:
+				case Operation::Kind::Cast:
+				case Operation::Kind::End:
+				case Operation::Kind::Intrinsic:
+				case Operation::Kind::Push_Int:
+				case Operation::Kind::Push_Symbol:
+				case Operation::Kind::Return:
+					assert_msg(false, "unreachable");
 				}
 			}
 			break;
