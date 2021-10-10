@@ -101,6 +101,9 @@ struct Token
 	std::string  sval;
 	uint64_t     ival = -1;
 	Keyword_Kind kval;
+
+	bool is_unsigned;
+	unsigned byte_size;
 };
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
@@ -118,13 +121,21 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "end"sv,       Keyword_Kind::End },
 	std::tuple { "false"sv,     Keyword_Kind::Bool },
 	std::tuple { "fun"sv,       Keyword_Kind::Function },
+	std::tuple { "i16"sv,       Keyword_Kind::Typename },
+	std::tuple { "i32"sv,       Keyword_Kind::Typename },
+	std::tuple { "i64"sv,       Keyword_Kind::Typename },
+	std::tuple { "i8"sv,        Keyword_Kind::Typename },
 	std::tuple { "if"sv,        Keyword_Kind::If },
 	std::tuple { "import"sv,    Keyword_Kind::Import },
 	std::tuple { "include"sv,   Keyword_Kind::Include },
 	std::tuple { "ptr"sv,       Keyword_Kind::Typename },
 	std::tuple { "return"sv,    Keyword_Kind::Return },
 	std::tuple { "true"sv,      Keyword_Kind::Bool },
+	std::tuple { "u16"sv,       Keyword_Kind::Typename },
+	std::tuple { "u32"sv,       Keyword_Kind::Typename },
 	std::tuple { "u64"sv,       Keyword_Kind::Typename },
+	std::tuple { "u64"sv,       Keyword_Kind::Typename },
+	std::tuple { "u8"sv,        Keyword_Kind::Typename },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
@@ -189,8 +200,24 @@ struct Type
 		Pointer,
 	};
 
+	auto& operator=(Type::Kind k) { kind = k; return *this; }
+
+	auto operator==(Type const& other) const
+	{
+		if (kind != other.kind) return false;
+		switch (kind)
+		{
+		case Type::Kind::Int: return is_unsigned == other.is_unsigned && byte_size == other.byte_size;
+		default:              return true;
+		}
+	}
+
+	auto operator!=(Type const& other) const { return !this->operator==(other); }
+
 	Kind kind;
 	struct Operation const* op = nullptr;
+	bool is_unsigned = false;
+	unsigned short byte_size = 0;
 };
 
 struct Operation
@@ -221,7 +248,7 @@ struct Operation
 
 	std::string_view symbol_prefix;
 
-	Type::Kind type;
+	Type type;
 };
 
 struct Word
@@ -390,12 +417,18 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 
 using Typestack = std::vector<Type>;
 
-constexpr auto type_name(Type const& type) -> std::string_view
+auto type_name(Type const& type) -> std::string
 {
 	switch (type.kind) {
-	case Type::Kind::Int: return "u64";
 	case Type::Kind::Bool: return "bool";
 	case Type::Kind::Pointer: return "ptr";
+	case Type::Kind::Int:
+		{
+			if (type.byte_size)
+				return fmt::format("{}{}", type.is_unsigned ? 'u' : 'i', 8 * type.byte_size);
+			return "u64";
+		}
+		break;
 	}
 	return {};
 }
@@ -448,13 +481,17 @@ void typecheck(std::vector<Operation> &ops)
 			break;
 
 		case Operation::Kind::Push_Int:
-			typestack.push_back({ op.type, &op });
+			{
+				auto type = op.type;
+				type.op = &op;
+				typestack.push_back(type);
+			}
 			break;
 
 		case Operation::Kind::Cast:
 			ensure_enough_arguments(typestack, op, 1);
 			pop();
-			push(op.type, op);
+			push(op.type.kind, op);
 			break;
 
 		case Operation::Kind::Intrinsic:
@@ -547,12 +584,13 @@ void typecheck(std::vector<Operation> &ops)
 			case Intrinsic_Kind::Right_Shift:
 				{
 					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
-					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
+					auto rhs = pop();
+					auto lhs = pop();
+					if (lhs != rhs || lhs.kind != Type::Kind::Int) {
 						unexpected_type(op, lhs, rhs);
 					}
-					push(Type::Kind::Int, op);
+					lhs.op = &op;
+					typestack.push_back(lhs);
 				}
 				break;
 
@@ -659,7 +697,7 @@ void typecheck(std::vector<Operation> &ops)
 				break;
 
 			case Intrinsic_Kind::Call:
-				error(op.token, "`call` is not supported by typechecking");
+				error_fatal(op.token, "`call` is not supported by typechecking");
 				break;
 
 			case Intrinsic_Kind::Syscall:
@@ -718,8 +756,7 @@ void typecheck(std::vector<Operation> &ops)
 
 				switch (opened) {
 				case Operation::Kind::If:
-					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack), [](auto const &expected, auto const& actual) {
-								return expected.kind == actual.kind; }); e != std::cend(types) || a != std::cend(typestack)) {
+					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
 						error(op.token, "`if` without `else` should have the same type stack shape before and after execution");
 
 						if (types.size() != typestack.size()) {
@@ -742,8 +779,7 @@ void typecheck(std::vector<Operation> &ops)
 					break;
 
 				case Operation::Kind::Else:
-					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack), [](auto const &expected, auto const& actual) {
-								return expected.kind == actual.kind; }); e != std::cend(types) || a != std::cend(typestack)) {
+					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
 						error(op.token, "`if` ... `else` and `else` ... `end` branches must have matching typestacks");
 						if (types.size() != typestack.size()) {
 							if (e == std::cend(types)) {
@@ -774,8 +810,7 @@ void typecheck(std::vector<Operation> &ops)
 						blocks.pop_back();
 						assert(opened == Operation::Kind::While);
 
-						if (auto [e, a] = std::mismatch(std::cbegin(while_types), std::cend(while_types), std::cbegin(typestack), std::cend(typestack), [](auto const& expected, auto const& actual) {
-										return expected.kind == actual.kind; }); e != std::cend(while_types) || a != std::cend(typestack)) {
+						if (auto [e, a] = std::mismatch(std::cbegin(while_types), std::cend(while_types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(while_types) || a != std::cend(typestack)) {
 							error(op.token, "`while ... do` should have the same type stack shape before and after execution");
 							if (while_types.size() != typestack.size()) {
 								if (e == std::cend(while_types)) {

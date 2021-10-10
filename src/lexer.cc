@@ -20,6 +20,21 @@ auto parse_int(Token &token) -> bool
 
 	unsigned const underscores = std::count(std::cbegin(s), std::cend(s), '_');
 
+	if (s.size() >= 2 && (s[s.size() - 2] == 'i' || s[s.size() - 2] == 'u')) {
+		if (!s.ends_with('8')) {
+			return false;
+		}
+		token.byte_size = 1;
+		token.is_unsigned = s[s.size() - 2] == 'u';
+		s.remove_suffix(2);
+	} else if (s.size() >= 3 && (s[s.size() - 3] == 'i' || s[s.size() - 3] == 'u')) {
+		token.is_unsigned = s[s.size() - 3] == 'u';
+		if (s.ends_with("16")) token.byte_size = 2; else
+		if (s.ends_with("32")) token.byte_size = 4; else
+		if (s.ends_with("64")) token.byte_size = 8; else return false;
+		s.remove_suffix(3);
+	}
+
 	token.ival = 0;
 
 	auto i = Max_Digits - s.size() + underscores;
@@ -122,6 +137,8 @@ auto lex(std::string_view const file, std::string_view const path, std::vector<T
 
 				if (!consumed)
 					consumed = parse_int<10>(token);
+
+
 
 				if (consumed) {
 					token.kind = Token::Kind::Integer;

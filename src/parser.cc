@@ -318,7 +318,8 @@ namespace parser
 					auto &op = body.emplace_back(Operation::Kind::Push_Int);
 					op.ival = token.ival;
 					op.token = token;
-					op.type = Type::Kind::Int;
+					op.type.is_unsigned = token.is_unsigned;
+					op.type.byte_size = token.byte_size;
 				}
 				break;
 
