@@ -1,0 +1,35 @@
+"io" import
+
+switch fun
+	while dup 0 > do
+		swap 2swap rot swap over =
+		if
+			drop swap
+			while dup 1 > do
+				2swap 2drop
+				1 -
+			end drop
+			swap drop
+			call return
+		else
+			swap drop
+		end
+		swap
+		1 -
+	end 2drop
+	call
+end
+
+20 30 '+'
+
+&fun
+	2drop
+	"Matching operator not found" print
+	1 exit
+end swap
+&fun +   end '+' rot
+&fun -   end '-' rot
+&fun *   end '*' rot
+&fun div end '/' rot
+4
+switch .

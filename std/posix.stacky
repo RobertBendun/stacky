@@ -377,3 +377,5 @@ SYS_pidfd_getfd              438   constant
 SYS_faccessat2               439   constant
 SYS_process_madvise          440   constant
 SYS_epoll_pwait2             441   constant
+
+exit fun SYS_exit syscall1 drop end
