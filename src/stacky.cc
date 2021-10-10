@@ -535,10 +535,6 @@ void typecheck(std::vector<Operation> &ops)
 				}
 				break;
 
-			case Intrinsic_Kind::Greater:
-			case Intrinsic_Kind::Greater_Eq:
-			case Intrinsic_Kind::Less:
-			case Intrinsic_Kind::Less_Eq:
 			case Intrinsic_Kind::Mul:
 			case Intrinsic_Kind::Mod:
 			case Intrinsic_Kind::Div:
@@ -557,6 +553,21 @@ void typecheck(std::vector<Operation> &ops)
 						unexpected_type(op, lhs, rhs);
 					}
 					push(Type::Kind::Int, op);
+				}
+				break;
+
+			case Intrinsic_Kind::Greater:
+			case Intrinsic_Kind::Greater_Eq:
+			case Intrinsic_Kind::Less:
+			case Intrinsic_Kind::Less_Eq:
+				{
+					ensure_enough_arguments(typestack, op, 2);
+					auto const& rhs = pop();
+					auto const& lhs = pop();
+					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
+						unexpected_type(op, lhs, rhs);
+					}
+					push(Type::Kind::Bool, op);
 				}
 				break;
 
@@ -688,11 +699,22 @@ void typecheck(std::vector<Operation> &ops)
 			}
 			break;
 
+		case Operation::Kind::While:
+			blocks.push_back({ typestack, Operation::Kind::While });
+			break;
+
+		case Operation::Kind::Do:
+			ensure_enough_arguments(typestack, op, 1);
+			if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
+			pop();
+			blocks.push_back({ typestack, Operation::Kind::Do });
+			break;
 
 		case Operation::Kind::End:
 			{
 				assert(!blocks.empty());
-				auto const& [types, opened] = blocks.back();
+				auto [types, opened] = std::move(blocks.back());
+				blocks.pop_back();
 
 				switch (opened) {
 				case Operation::Kind::If:
@@ -702,10 +724,10 @@ void typecheck(std::vector<Operation> &ops)
 
 						if (types.size() != typestack.size()) {
 							if (e == std::cend(types)) {
-								info("there are {} excess values on the stack"_format(std::distance(a, std::cend(typestack))));
+								info(op.token, "there are {} excess values on the stack"_format(std::distance(a, std::cend(typestack))));
 								print_typestack_trace(a, std::cend(typestack), "excess");
 							} else {
-								info("there are missing {} values on the stack"_format(std::distance(e, std::cend(types))));
+								info(op.token, "there are missing {} values on the stack"_format(std::distance(e, std::cend(types))));
 								print_typestack_trace(e, std::cend(types), "missing");
 							}
 						} else {
@@ -725,10 +747,10 @@ void typecheck(std::vector<Operation> &ops)
 						error(op.token, "`if` ... `else` and `else` ... `end` branches must have matching typestacks");
 						if (types.size() != typestack.size()) {
 							if (e == std::cend(types)) {
-								info("there are {} excess values in `else` branch"_format(std::distance(a, std::cend(typestack))));
+								info(op.token, "there are {} excess values in `else` branch"_format(std::distance(a, std::cend(typestack))));
 								print_typestack_trace(a, std::cend(typestack), "excess");
 							} else {
-								info("there are missing {} values in `else` branch"_format(std::distance(e, std::cend(types))));
+								info(op.token, "there are missing {} values in `else` branch"_format(std::distance(e, std::cend(types))));
 								print_typestack_trace(e, std::cend(types), "missing");
 							}
 						} else {
@@ -742,15 +764,47 @@ void typecheck(std::vector<Operation> &ops)
 					}
 					break;
 
+				case Operation::Kind::While:
+					assert_msg(false, "unreachable");
+					break;
+
+				case Operation::Kind::Do:
+					{
+						auto [while_types, opened] = std::move(blocks.back());
+						blocks.pop_back();
+						assert(opened == Operation::Kind::While);
+
+						if (auto [e, a] = std::mismatch(std::cbegin(while_types), std::cend(while_types), std::cbegin(typestack), std::cend(typestack), [](auto const& expected, auto const& actual) {
+										return expected.kind == actual.kind; }); e != std::cend(while_types) || a != std::cend(typestack)) {
+							error(op.token, "`while ... do` should have the same type stack shape before and after execution");
+							if (while_types.size() != typestack.size()) {
+								if (e == std::cend(while_types)) {
+									info(op.token, "there are {} excess values in loop body"_format(std::distance(a, std::cend(typestack))));
+									print_typestack_trace(a, std::cend(typestack), "excess");
+								} else {
+									info(op.token, "there are missing {} values in loop body"_format(std::distance(e, std::cend(while_types))));
+									print_typestack_trace(e, std::cend(while_types), "missing");
+								}
+							} else {
+								// stacks are equal in size, so difference is in types not their amount
+								for (; e != std::cend(while_types) && a != std::cend(typestack); ++e, ++a) {
+									if (e->kind == a->kind) continue;
+									unexpected_type(op, *e, *a);
+								}
+							}
+							exit(1);
+						}
+					}
+					break;
+
 				default:
-					assert_msg(false, "unimplemented");
+					assert_msg(false, "unimplemented end");
 				}
 			}
 			break;
 
+
 		case Operation::Kind::Call_Symbol:
-		case Operation::Kind::Do:
-		case Operation::Kind::While:
 		case Operation::Kind::Return:
 			assert_msg(false, "unimplemented");
 		}
