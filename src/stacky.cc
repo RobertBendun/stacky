@@ -44,10 +44,14 @@ struct Arguments
 	fs::path compiler;
 	fs::path executable;
 	fs::path assembly;
+	fs::path control_flow;
+
+	std::string control_flow_function;
 
 	bool warn_redefinitions = true;
 	bool verbose = false;
 	bool typecheck = false;
+	bool control_flow_graph = false;
 
 	bool run_mode = false;
 };
@@ -308,7 +312,7 @@ struct Generation_Info
 #include "parser.cc"
 #include "linux-x86_64.cc"
 #include "optimizer.cc"
-
+#include "debug.cc"
 
 inline void register_intrinsic(Words &words, std::string_view name, Intrinsic_Kind kind)
 {
@@ -994,6 +998,9 @@ auto main(int argc, char **argv) -> int
 
 	if (Compilation_Failed)
 		return 1;
+
+	if (compiler_arguments.control_flow_graph)
+		generate_control_flow_graph(geninfo, compiler_arguments.control_flow, compiler_arguments.control_flow_function);
 
 	{
 		std::stringstream ss;

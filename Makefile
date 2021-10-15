@@ -12,7 +12,8 @@ Compiler_Sources=src/stacky.cc \
 								 src/parser.cc \
 								 src/lexer.cc \
 								 src/linux-x86_64.cc \
-								 src/optimizer.cc
+								 src/optimizer.cc \
+								 src/debug.cc
 
 .PHONY:
 all: stacky test $(Compiled_Examples)

@@ -355,12 +355,15 @@ namespace parser
 							auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
 							op.symbol_prefix = Symbol_Prefix;
 							op.ival = word.id;
+							op.sval = token.sval;
+							op.token = token;
 						}
 						break;
 					case Word::Kind::Function:
 						{
 							auto &op = body.emplace_back(Operation::Kind::Call_Symbol);
 							op.sval = token.sval;
+							op.token = token;
 							op.symbol_prefix = Function_Prefix;
 							op.ival = word.id;
 						}

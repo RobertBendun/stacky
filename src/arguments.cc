@@ -38,6 +38,8 @@ void parse_arguments(int argc, char **argv)
 
 	po::options_description debug("Debugging");
 	debug.add_options()
+		("control-flow,F", "generate control flow graph of a program (and produce executable)")
+		("control-flow-for", po::value<std::string>(), "generate control flow graph of a function (and produce executable)")
 		("print-function,F", po::value<std::vector<std::string>>()->composing(), "print soon emited words of given function")
 		("print-program,P", "print soon emited words of program")
 	;
@@ -106,4 +108,16 @@ void parse_arguments(int argc, char **argv)
 
 	compiler_arguments.verbose = vm.count("verbose");
 	compiler_arguments.typecheck = vm.count("check");
+
+	if (compiler_arguments.control_flow_graph = vm.count("control-flow")) {
+		compiler_arguments.control_flow = compiler_arguments.executable;
+		compiler_arguments.control_flow += ".dot";
+	}
+
+	if (vm.count("control-flow-for")) {
+		compiler_arguments.control_flow_graph = true;
+		compiler_arguments.control_flow_function = vm["control-flow-for"].as<std::string>();
+		compiler_arguments.control_flow = compiler_arguments.executable;
+		compiler_arguments.control_flow += ".fun.dot";
+	}
 }
