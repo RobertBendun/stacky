@@ -12,7 +12,7 @@ In mostly random order:
 - [ ] Static type system (currently beeing developed)
 - [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky)
 - [ ] Compile time code execution
-- [ ] Multiplatform (at least supporting Linux ARM and x86\_64)
+- [ ] Multiplatform (at least supporting Linux ARM and x86\_64, maybe WebAssembly)
 - [ ] Ability to interact with C code (but not depending on it)
 
 with some basic optimizations and good error reporting.
