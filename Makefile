@@ -8,7 +8,6 @@ Compiler_Sources=src/stacky.cc \
 								 src/utilities.cc \
 								 src/errors.cc \
 								 src/enum-names.cc \
-								 src/arguments.cc \
 								 src/parser.cc \
 								 src/lexer.cc \
 								 src/linux-x86_64.cc \
@@ -20,8 +19,14 @@ all: stacky test $(Compiled_Examples)
 
 # ------------ COMPILER COMPILATION ------------
 
-stacky: $(Compiler_Sources)
-	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt
+build:
+	mkdir build -p
+
+stacky: $(Compiler_Sources) build/arguments.o
+	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt build/arguments.o
+
+build/arguments.o: src/arguments.cc src/arguments.hh build
+	$(Compiler) $(Options) $< -o $@ -c -O3 -lboost_program_options -lfmt
 
 run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
 	$(Compiler) $(Options) $< -o $@ -O3 -lfmt
@@ -29,7 +34,7 @@ run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
 # ------------ C++ CODE GENERATION ------------
 
 src/enum-names.cc: enum2string.sh src/stacky.cc
-	./enum2string.sh src/stacky.cc > src/enum-names.cc
+	./enum2string.sh src/stacky.cc > $@
 
 # ------------ STACKY COMPILATION ------------
 
@@ -49,6 +54,7 @@ clean:
 	rm -f std/*.asm std/*.o
 	rm -f $(shell find tests examples std -type f -executable -not -name "*.stacky" -print)
 	rm -f src/enum-names.cc
+	rm -rf build
 
 .PHONY: stat
 stat:

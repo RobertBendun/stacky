@@ -1,3 +1,5 @@
+#include <source_location>
+
 template<typename Location>
 concept Locationable = requires (Location const& loc) {
 	{ loc.file }   -> std::convertible_to<std::string_view>;

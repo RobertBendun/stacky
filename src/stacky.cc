@@ -37,27 +37,7 @@ namespace fs = std::filesystem;
 #define Function_Body_Prefix "_Stacky_funinstr_"
 #define Anonymous_Function_Prefix "_Stacky_anonymous_"
 
-struct Arguments
-{
-	std::vector<fs::path> include_search_paths;
-	std::vector<std::string> source_files;
-	fs::path compiler;
-	fs::path executable;
-	fs::path assembly;
-	fs::path control_flow;
-
-	std::string control_flow_function;
-
-	bool warn_redefinitions = true;
-	bool verbose = false;
-	bool typecheck = false;
-	bool control_flow_graph = false;
-
-	bool run_mode = false;
-
-
-	void parse(int argc, char **argv);
-};
+#include "arguments.hh"
 
 Arguments compiler_arguments;
 
@@ -310,7 +290,6 @@ struct Generation_Info
 
 #include "errors.cc"
 #include "unicode.cc"
-#include "arguments.cc"
 #include "lexer.cc"
 #include "parser.cc"
 #include "linux-x86_64.cc"
