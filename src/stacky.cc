@@ -54,6 +54,9 @@ struct Arguments
 	bool control_flow_graph = false;
 
 	bool run_mode = false;
+
+
+	void parse(int argc, char **argv);
 };
 
 Arguments compiler_arguments;
@@ -900,7 +903,7 @@ void typecheck(std::vector<Operation> &ops)
 
 auto main(int argc, char **argv) -> int
 {
-	parse_arguments(argc, argv);
+	compiler_arguments.parse(argc, argv);
 
 	std::vector<Token> tokens;
 

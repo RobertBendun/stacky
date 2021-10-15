@@ -8,49 +8,43 @@ namespace po = boost::program_options;
 [[noreturn]]
 void help(po::options_description const& desc)
 {
-	std::cout << "usage: stacky [command] [options]\n";
+	std::cout << "usage: stacky <build|run> [options] <sources...>\n";
 	std::cout << desc << '\n';
 	exit(1);
 }
 
-void parse_arguments(int argc, char **argv)
-{
+void Arguments::parse(int argc, char **argv)
+try {
 	po::options_description common("Common options");
 	common.add_options()
 		("help,h", "produce help message")
-		("verbose,V", "print all unnesesary info during compilation")
-		("version,v", "print version of compiler")
+		("verbose,v", "print all unnesesary info during compilation")
 		("check,c", "type check program")
 	;
 
 	po::options_description build("Build options");
 	build.add_options()
-		("output-file,o", po::value<std::string>(), "file name of produced executable")
-		("target", po::value<std::string>(), "specifies compilation target (either `linux` or `x86_64`)")
+		("output,o", po::value<std::string>()->value_name("<path>"), "file name of produced executable")
 	;
 
 	po::options_description config("Configuration");
 	config.add_options()
-		("callstack-size", po::value<unsigned>(), "specify size of callstack")
-		("constant,C", po::value<std::vector<std::string>>()->composing(), "define constant from command line")
-		("include-path,I", po::value<std::vector<std::string>>()->composing(), "adds path to the list of dirs where Stacky files are searched when `include` word is executed")
+		("include,I", po::value<std::vector<fs::path>>()->composing()->value_name("<path>"), "adds path to the list of dirs where Stacky files are searched when `include` or `import` word is executed")
 	;
 
 	po::options_description debug("Debugging");
 	debug.add_options()
-		("control-flow,F", "generate control flow graph of a program (and produce executable)")
-		("control-flow-for", po::value<std::string>(), "generate control flow graph of a function (and produce executable)")
-		("print-function,F", po::value<std::vector<std::string>>()->composing(), "print soon emited words of given function")
-		("print-program,P", "print soon emited words of program")
+		("control-flow", "generate control flow graph of a program")
+		("control-flow-for", po::value<std::string>()->value_name("<function>"), "generate control flow graph of a function")
 	;
 
 	po::options_description hidden("Hidden options");
 	hidden.add_options()
-		("source-file", po::value<std::vector<std::string>>(), "Source files with Stacky code")
+		("source", po::value<std::vector<std::string>>(), "Source files with Stacky code")
 		("command", po::value<std::string>(), "command to execute");
 
 	po::positional_options_description pos;
-	pos.add("command", 1).add("source-file", -1);
+	pos.add("command", 1).add("source", -1);
 
 	po::options_description cmdline_options;
 	cmdline_options.add(common).add(config).add(debug).add(hidden);
@@ -73,51 +67,50 @@ void parse_arguments(int argc, char **argv)
 
 	auto const& command = vm["command"].as<std::string>();
 
-
 	std::vector<std::string> opts = po::collect_unrecognized(parsed.options, po::include_positional);
 	opts.erase(opts.begin());
 
-	if (command == "run") {
-		compiler_arguments.run_mode = true;
-	} else if (command == "build") {
+	if (command == "build" || (run_mode = command == "run")) {
 		po::store(po::command_line_parser(opts).options(build).run(), vm);
 	} else {
 		error_fatal("Unrecognized command: "_format(command));
 	}
 
-	if (!vm.count("source-file")) {
-		error_fatal("No source files ware provided");
-	}
+	ensure_fatal(vm.count("source"), "no input files");
+	source_files = vm["source"].as<std::vector<std::string>>();
 
-	compiler_arguments.source_files = vm["source-file"].as<std::vector<std::string>>();
-
-	if (vm.count("output-file")) {
-		compiler_arguments.executable = vm["output-file"].as<std::string>();
-		std::cout << "Output file: " << compiler_arguments.executable << '\n';
+	if (vm.count("output")) {
+		executable = vm["output"].as<std::string>();
 	} else {
-		auto src_path = fs::path(compiler_arguments.source_files[0]);
-		compiler_arguments.executable = src_path.parent_path();
-		compiler_arguments.executable /= src_path.stem();
+		auto src_path = fs::path(source_files[0]);
+		executable = src_path.parent_path();
+		executable /= src_path.stem();
 	}
 
-	compiler_arguments.assembly = compiler_arguments.executable;
-	compiler_arguments.assembly += ".asm";
+	assembly = executable;
+	assembly += ".asm";
 
-	compiler_arguments.compiler = fs::canonical("/proc/self/exe");
-	compiler_arguments.include_search_paths.push_back(compiler_arguments.compiler.parent_path() / "std");
+	if (vm.count("include"))
+		include_search_paths = vm["include"].as<std::vector<fs::path>>();
 
-	compiler_arguments.verbose = vm.count("verbose");
-	compiler_arguments.typecheck = vm.count("check");
+	compiler = fs::canonical("/proc/self/exe");
+	include_search_paths.push_back(compiler.parent_path() / "std");
 
-	if (compiler_arguments.control_flow_graph = vm.count("control-flow")) {
-		compiler_arguments.control_flow = compiler_arguments.executable;
-		compiler_arguments.control_flow += ".dot";
+
+	verbose   = vm.count("verbose");
+	typecheck = vm.count("check");
+
+	if (control_flow_graph = vm.count("control-flow")) {
+		control_flow = executable;
+		control_flow += ".dot";
 	}
 
 	if (vm.count("control-flow-for")) {
-		compiler_arguments.control_flow_graph = true;
-		compiler_arguments.control_flow_function = vm["control-flow-for"].as<std::string>();
-		compiler_arguments.control_flow = compiler_arguments.executable;
-		compiler_arguments.control_flow += ".fun.dot";
+		control_flow_graph = true;
+		control_flow_function = vm["control-flow-for"].as<std::string>();
+		control_flow = executable;
+		control_flow += ".fun.dot";
 	}
+} catch (boost::program_options::unknown_option const& u) {
+	error_fatal(u.what());
 }
