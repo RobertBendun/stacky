@@ -166,6 +166,8 @@ namespace parser
 					word.kind  = Word::Kind::Integer;
 					word.id    = Word::word_count++;
 					word.ival  = tokens[i-1].ival;
+					word.is_unsigned = tokens[i-1].is_unsigned;
+					word.byte_size = tokens[i-1].byte_size;
 				}
 				break;
 
@@ -173,7 +175,7 @@ namespace parser
 				{
 					ensure(i >= 2 && tokens[i-2].kind == Token::Kind::Word, token, "{} should be preceeded by an identifier"_format(token.sval));
 
-					unsigned size = 0;
+					unsigned size = 0, cell_size = 0;
 					switch (auto &t = tokens[i-1]; t.kind) {
 					case Token::Kind::Integer:
 						size = t.ival;
@@ -190,11 +192,11 @@ namespace parser
 
 					switch (token.sval[3]) {
 					case 'y':
-					case '8': size *= 1; break;
-					case '1': size *= 2; break;
-					case '3': size *= 4; break;
+					case '8': cell_size = 1; break;
+					case '1': cell_size = 2; break;
+					case '3': cell_size = 4; break;
 					case 's':
-					case '6': size *= 8; break;
+					case '6': cell_size = 8; break;
 					default:
 						assert_msg(false, "unreachable");
 					}
@@ -202,7 +204,8 @@ namespace parser
 					check_if_has_been_defined(token, tokens[i-2].sval);
 					auto &word     = words[tokens[i-2].sval];
 					word.kind      = Word::Kind::Array;
-					word.byte_size = size;
+					word.byte_size = cell_size * size;
+					word.cell_size = cell_size;
 					word.id        = Word::word_count++;
 				}
 				break;
@@ -348,13 +351,20 @@ namespace parser
 						{
 							auto &op = body.emplace_back(Operation::Kind::Push_Int);
 							op.ival = word.ival;
+							op.type.kind = Type::Kind::Int;
+							op.type.byte_size = word.byte_size;
+							op.type.is_unsigned = word.is_unsigned;
 						}
 						break;
 					case Word::Kind::Array:
 						{
 							auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
+							op.token = token;
 							op.symbol_prefix = Symbol_Prefix;
 							op.ival = word.id;
+							op.type.kind = Type::Kind::Pointer;
+							op.type.byte_size = word.cell_size;
+							op.type.is_unsigned = word.is_unsigned;
 						}
 						break;
 					case Word::Kind::Function:

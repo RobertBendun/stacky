@@ -273,7 +273,9 @@ struct Word
 
 	Intrinsic_Kind intrinsic;
 
+	bool is_unsigned;
 	uint64_t byte_size;
+	uint64_t cell_size;
 
 	static inline uint64_t word_count = 0;
 	uint64_t id;
@@ -427,15 +429,18 @@ using Typestack = std::vector<Type>;
 auto type_name(Type const& type) -> std::string
 {
 	switch (type.kind) {
-	case Type::Kind::Bool: return "bool";
-	case Type::Kind::Pointer: return "ptr";
+	case Type::Kind::Bool:
+		return "bool";
+
+	case Type::Kind::Pointer:
+		if (type.byte_size)
+			return fmt::format("*{}{}", type.is_unsigned ? 'u' : 'i', 8 * type.byte_size);
+		return "ptr";
+
 	case Type::Kind::Int:
-		{
-			if (type.byte_size)
-				return fmt::format("{}{}", type.is_unsigned ? 'u' : 'i', 8 * type.byte_size);
-			return "u64";
-		}
-		break;
+		if (type.byte_size)
+			return fmt::format("{}{}", type.is_unsigned ? 'u' : 'i', 8 * type.byte_size);
+		return "u64";
 	}
 	return {};
 }
@@ -504,7 +509,7 @@ void typecheck(std::vector<Operation> &ops)
 	for (auto const& op : ops) {
 		switch (op.kind) {
 		case Operation::Kind::Push_Symbol:
-			typestack.push_back({ Type::Kind::Pointer, &op });
+			typestack.emplace_back(op.type.with_op(&op));
 			break;
 
 		case Operation::Kind::Push_Int:
