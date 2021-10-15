@@ -6,6 +6,8 @@
 arithmetic
 stack-ops
 *.o
+*.dot
+*.svg
 stacky
 run-tests
 stdlib-symbols.cc

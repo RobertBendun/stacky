@@ -44,8 +44,8 @@ test: run-tests stacky
 
 .PHONY: clean
 clean:
-	rm -f stacky run-tests tests/*.asm tests/*.o *.o *.asm
-	rm -f examples/**/*.asm examples/**/*.o examples/*.asm examples/*.o
+	rm -f stacky run-tests tests/*.asm tests/*.o *.o *.asm *.svg *.dot
+	rm -f examples/**/*.dot examples/**/*.svg examples/**/*.asm examples/**/*.o examples/*.asm examples/*.o
 	rm -f std/*.asm std/*.o
 	rm -f $(shell find tests examples std -type f -executable -not -name "*.stacky" -print)
 	rm -f src/enum-names.cc
