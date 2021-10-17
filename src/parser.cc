@@ -69,10 +69,6 @@ namespace parser
 			if (token.kind != Token::Kind::String)
 				continue;
 
-			// TODO insert based not on how string is written in source code
-			// but how it's on result basis. Strings like "Hi world" and "Hi\x20world"
-			// should resolve into equal pointers
-
 			std::string s;
 			s.reserve(token.sval.size());
 			parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2), [&s](char c) { s.push_back(c); });
