@@ -1,0 +1,25 @@
+"io" import
+
+Fst 1  constant
+Lst 20 constant
+
+# v i
+evenly-divisible fun
+	Fst while dup Lst <= do
+		2dup mod 0 != if
+			2drop
+			false return
+		end
+		1 +
+	end 2drop
+	true return
+end
+
+
+1 while 1 do
+	dup evenly-divisible if
+		.
+		return
+	end
+	1 +
+end drop
