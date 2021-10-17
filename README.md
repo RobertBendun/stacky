@@ -20,30 +20,20 @@ with some basic optimizations and good error reporting.
 ## Example
 ### hello, world
 ```
+# hello.stacky
 "io" import
 
 "hello, world" println
 ```
-### Program printing "HELLO" to stdout, that was transformed from "hello"
 
-```
-"io" import
-
-Hello-Count 6 constant
-Hello Hello-Count []byte
-
-"hello"
-0 while dup Hello-Count 1 - < do
-	2dup + load8 'a' 'A' - -
-	over Hello + swap store8
-	1 +
-end
-
-Hello println
+```console
+$ stacky run hello.stacky
+hello, world
 ```
 
 ### Print current date
 ```
+# date.stacky
 "io"   import
 "time" import
 
@@ -61,6 +51,11 @@ date # returns year, month, day, hours, minutes
 	2cell-print " " print
 	2cell-print ":" print
 	2cell-print
+```
+
+```console
+$ stacky run date.stacky
+Date is 2021-10-17 23:13
 ```
 
 ## Language reference
