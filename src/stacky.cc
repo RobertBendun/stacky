@@ -59,12 +59,18 @@ enum class Keyword_Kind
 	Import,
 	Return,
 	Bool,
+
+	// Type definitions
 	Typename,
+	Stack_Effect_Begin,
+	Stack_Effect_End,
+	Stack_Effect_Divider,
 
 	// Definitions
 	Array,
 	Constant,
 	Function,
+
 
 	Last = Function
 };
@@ -95,6 +101,9 @@ struct Token
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "&fun"sv,      Keyword_Kind::Function },
+	std::tuple { "::"sv,        Keyword_Kind::Stack_Effect_Begin },
+	std::tuple { "--"sv,        Keyword_Kind::Stack_Effect_Divider },
+	std::tuple { "is"sv,        Keyword_Kind::Stack_Effect_End },
 	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
@@ -125,6 +134,8 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "u8"sv,        Keyword_Kind::Typename },
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
+
+static_assert(int(Keyword_Kind::Last)+1 == 16, "Exhaustive definition of keywords lookup");
 
 
 enum class Intrinsic_Kind

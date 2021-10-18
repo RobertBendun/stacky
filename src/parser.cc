@@ -131,6 +131,9 @@ namespace parser
 			case Keyword_Kind::While:
 			case Keyword_Kind::Bool:
 			case Keyword_Kind::Typename:
+			case Keyword_Kind::Stack_Effect_Begin:
+			case Keyword_Kind::Stack_Effect_Divider:
+			case Keyword_Kind::Stack_Effect_End:
 				break;
 
 			case Keyword_Kind::Function:
@@ -432,8 +435,18 @@ namespace parser
 						}
 						break;
 
+						case Keyword_Kind::Stack_Effect_Begin:
+						case Keyword_Kind::Stack_Effect_Divider:
+						case Keyword_Kind::Stack_Effect_End:
+							// Pack type definition into single `struct Type` value that later will be consumed by
+							// function declaration. Only valid values are typenames and integers
+							//
+							// Report error if `::` is not preceeded by &fun or fun
+							assert_msg(false, "unimplemented");
+							break;
+
 						case Keyword_Kind::Import:
-						case Keyword_Kind::Include: assert_msg(false, "unreachable"); break; // all includes should be eliminated by now
+						case Keyword_Kind::Include: assert_msg(false, "unreachable: all includes should be eliminated in file inclusion process"); break;
 						case Keyword_Kind::Array:    i -= 2; break;
 						case Keyword_Kind::Constant: i -= 2; break;
 						case Keyword_Kind::Function: error_fatal(token, "Missing `end` for this function definition"); break;
