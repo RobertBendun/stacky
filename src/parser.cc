@@ -280,6 +280,8 @@ namespace parser
 
 	void transform_into_operations(std::span<Token> const& tokens, std::vector<Operation> &body, Words& words)
 	{
+		std::optional<Stack_Effect> stack_effect_declaration;
+
 		for (unsigned i = tokens.size() - 1; i < tokens.size(); --i) {
 			auto &token = tokens[i];
 			switch (token.kind) {
@@ -387,11 +389,7 @@ namespace parser
 						{
 							auto &op = body.emplace_back(Operation::Kind::Cast);
 							op.token = token;
-							switch (token.sval[0]) {
-							case 'b': op.type = Type::Kind::Bool; break;
-							case 'p': op.type = Type::Kind::Pointer; break;
-							case 'u': op.type = Type::Kind::Int; break;
-							}
+							op.type = Type::from(token);
 						}
 						break;
 
@@ -415,8 +413,11 @@ namespace parser
 							++j;
 
 							if (tokens[j].kval == Keyword_Kind::Function) {
+								Word *word = nullptr;
+
 								if (tokens[j].sval[0] == '&') {
 									auto &func = words.at(Anonymous_Function_Prefix + std::to_string(tokens[j].ival));
+									word = &func;
 									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
 									i = j;
 
@@ -426,8 +427,16 @@ namespace parser
 									op.token = token;
 								} else {
 									auto &func = words.at(tokens[j-1].sval);
+									word = &func;
 									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
 									i = j-1;
+								}
+
+								if (stack_effect_declaration) {
+									assert_msg(word != nullptr, "sanity check");
+									word->effect = *std::move(stack_effect_declaration);
+									word->has_effect = true;
+									stack_effect_declaration = std::nullopt;
 								}
 							} else {
 								body.emplace_back(Operation::Kind::End, token);
@@ -437,12 +446,49 @@ namespace parser
 
 						case Keyword_Kind::Stack_Effect_Begin:
 						case Keyword_Kind::Stack_Effect_Divider:
+							assert_msg(false, "unreachable: Stack_Effect_End should collapse this tokens into type definition");
+							break;
+
 						case Keyword_Kind::Stack_Effect_End:
-							// Pack type definition into single `struct Type` value that later will be consumed by
-							// function declaration. Only valid values are typenames and integers
-							//
-							// Report error if `::` is not preceeded by &fun or fun
-							assert_msg(false, "unimplemented");
+							{
+								bool divider_has_been_seen = false;
+								Stack_Effect effect;
+
+								for (unsigned j = i-1; j < tokens.size(); --j) {
+									if (tokens[j].kind == Token::Kind::Integer) {
+										assert_msg(false, "unimplemented: Type variables are not implemented");
+									}
+
+									if (tokens[j].kind != Token::Kind::Keyword) {
+										error(tokens[j], "Type specification only allows integers or type names");
+										break;
+									}
+
+									switch (tokens[j].kval) {
+									case Keyword_Kind::Stack_Effect_End:
+										error_fatal(tokens[j], "Nested type definitions are not allowed (`is` inside type definition)");
+										break;
+
+									case Keyword_Kind::Stack_Effect_Divider:
+										ensure(!divider_has_been_seen, tokens[j], "Nested type definitions are not allowed (multiple `--` inside type definition)");
+										divider_has_been_seen = true;
+										break;
+
+									case Keyword_Kind::Typename:
+										effect[divider_has_been_seen].push_back(Type::from(tokens[j]));
+										break;
+
+									case Keyword_Kind::Stack_Effect_Begin:
+										ensure(j >= 1 && tokens[j-1].kind == Token::Kind::Keyword && tokens[j-1].kval == Keyword_Kind::Function, tokens[i], "Types can only be specified for functions");
+										stack_effect_declaration = std::move(effect);
+										i = j;
+										break;
+
+									default:
+										assert_msg(false, "TODO error");
+									}
+								}
+							}
 							break;
 
 						case Keyword_Kind::Import:

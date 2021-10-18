@@ -21,6 +21,7 @@ struct Arguments
 	bool typecheck          = false;
 	bool control_flow_graph = false;
 	bool run_mode           = false;
+	bool dump_words_effects = false;
 
 	void parse(int argc, char **argv);
 };

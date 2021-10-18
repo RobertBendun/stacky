@@ -189,6 +189,7 @@ enum class Intrinsic_Kind
 		Last = Syscall,
 };
 
+
 struct Type
 {
 	enum class Kind
@@ -223,6 +224,21 @@ struct Type
 	struct Operation const* op = nullptr;
 	bool is_unsigned = false;
 	unsigned short byte_size = 0;
+
+	static Type from(Token const& token);
+};
+
+struct Stack_Effect
+{
+	std::vector<Type> input;
+	std::vector<Type> output;
+
+	auto& operator[](bool is_output) { return is_output ? output : input; }
+
+	auto string() const -> std::string
+	{
+		return "{} -- {}"_format(fmt::join(input, " "), fmt::join(output, " "));
+	}
 };
 
 struct Operation
@@ -278,6 +294,9 @@ struct Word
 
 	std::vector<Operation> function_body = {};
 	Word *relevant_word = nullptr;
+
+	bool has_effect = false;
+	Stack_Effect effect;
 };
 
 using Words = std::unordered_map<std::string, Word>;
@@ -306,6 +325,19 @@ struct Generation_Info
 #include "linux-x86_64.cc"
 #include "optimizer.cc"
 #include "debug.cc"
+
+
+Type Type::from(Token const& token)
+{
+	assert(token.kind == Token::Kind::Keyword && token.kval == Keyword_Kind::Typename);
+	switch (token.sval[0]) {
+	case 'b': return { Type::Kind::Bool };
+	case 'p': return { Type::Kind::Pointer };
+	case 'u': return { Type::Kind::Int };
+	}
+
+	unreachable("unparsable type definition (bug in lexer probably)");
+}
 
 inline void register_intrinsic(Words &words, std::string_view name, Intrinsic_Kind kind)
 {
@@ -436,6 +468,14 @@ auto type_name(Type const& type) -> std::string
 	}
 	return {};
 }
+
+template <> struct fmt::formatter<Type> : fmt::formatter<std::string> {
+  // parse is inherited from formatter<string_view>.
+  template <typename FormatContext>
+  auto format(Type const& t, FormatContext& ctx) {
+    return formatter<std::string>::format(type_name(t), ctx);
+  }
+};
 
 void print_typestack_trace(Typestack& typestack, std::string_view verb="unhandled")
 {
@@ -982,8 +1022,16 @@ auto main(int argc, char **argv) -> int
 	if (Compilation_Failed)
 		return 1;
 
-	if (compiler_arguments.typecheck)
+	if (compiler_arguments.dump_words_effects) {
+		for (auto const& [name, word] : geninfo.words) {
+			if (!word.has_effect) continue;
+			fmt::print("`{}`: {}\n", name, word.effect.string());
+		}
+	}
+
+	if (compiler_arguments.typecheck) {
 		typecheck(geninfo.main);
+	}
 
 	optimizer::optimize(geninfo);
 	generate_jump_targets_lookup(geninfo);

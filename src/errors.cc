@@ -99,6 +99,14 @@ inline void assert_impl(bool test, std::string_view test_str, std::source_locati
 	exit(1);
 }
 
+[[noreturn]]
+inline void unreachable(std::string_view message, std::source_location sl = std::source_location::current())
+{
+	fmt::print(stderr, "stacky: compiler bug: unreachable code has been reached at {}:{}:{}:{} with message: {}\n",
+		sl.file_name(), sl.line(), sl.column(), sl.function_name(), message);
+	exit(1);
+}
+
 #define verbose(...) do { if (compiler_arguments.verbose) info(__VA_ARGS__); } while(0)
 
 #ifdef assert
