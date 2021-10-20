@@ -479,7 +479,12 @@ namespace parser
 										break;
 
 									case Keyword_Kind::Stack_Effect_Begin:
-										ensure(j >= 1 && tokens[j-1].kind == Token::Kind::Keyword && tokens[j-1].kval == Keyword_Kind::Function, tokens[i], "Types can only be specified for functions");
+										// TODO This is a hack and result of a using same code for global and local scope parsing.
+										// To avoid this we must seperate type definition extraction from transforming into operations
+										// Then more sophisticated ensure statement may be used.
+										// Current approach does not allow connecting types with function definitions.
+										ensure(j == 0, tokens[i], "Types can only be specified for functions");
+										// ensure(j >= 1 && tokens[j-1].kind == Token::Kind::Keyword && tokens[j-1].kval == Keyword_Kind::Function, tokens[i], "Types can only be specified for functions");
 										stack_effect_declaration = std::move(effect);
 										i = j;
 										break;
