@@ -1,0 +1,7 @@
+TIOCGWINSZ 0x5413 constant
+
+sizeof(winsize)        8 constant
+winsize.ws_row         0 constant
+winsize.ws_col         2 constant
+sizeof(winsize.ws_row) 2 constant
+sizeof(winsize.ws_col) 2 constant

@@ -9,9 +9,15 @@ timespec 2 []u64
 # seconds
 sleep fun # seconds --
 	timespec swap store64
+	timespec 1 + 0 store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
 end
 
+msleep fun # miliseconds --
+	timespec 0 + 0 store64
+	timespec 8 + swap 1000000 * store64
+	while timespec timespec SYS_nanosleep syscall2 0 < do end
+end
 
 era 8 []byte
 
