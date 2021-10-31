@@ -378,4 +378,19 @@ SYS_faccessat2               439   constant
 SYS_process_madvise          440   constant
 SYS_epoll_pwait2             441   constant
 
+SIGHUP   1   constant
+SIGINT   2   constant
+SIGQUIT  3   constant
+SIGILL   4   constant
+SIGTRAP  5   constant
+SIGABRT  6   constant
+SIGFPE   8   constant
+SIGKILL  9   constant
+SIGUSR1  10  constant
+SIGSEGV  11  constant
+SIGUSR2  12  constant
+SIGPIPE  13  constant
+SIGALRM  14  constant
+SIGTERM  15  constant
+
 exit fun SYS_exit syscall1 drop end

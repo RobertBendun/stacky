@@ -1,0 +1,10 @@
+sigaction.sa_handler            0    constant
+sigaction.sa_sigaction          0    constant
+sigaction.sa_flags              136  constant
+sigaction.sa_mask               8    constant
+
+sizeof(sigaction)               152  constant
+sizeof(sigaction.sa_flags)      4    constant
+sizeof(sigaction.sa_handler)    8    constant
+sizeof(sigaction.sa_mask)       128  constant
+sizeof(sigaction.sa_sigaction)  8    constant

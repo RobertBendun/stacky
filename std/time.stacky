@@ -1,21 +1,27 @@
 "posix" import
 
+sizeof(timespec)          16  constant
+timespec.tv_sec           0   constant
+timespec.tv_nsec          8   constant
+sizeof(timespec.tv_sec)   8   constant
+sizeof(timespec.tv_nsec)  8   constant
+
 now fun # -- seconds
 	0 SYS_time syscall1
 end
 
-timespec 2 []u64
+timespec sizeof(timespec) []byte
 
 # seconds
 sleep fun # seconds --
-	timespec swap store64
-	timespec 1 + 0 store64
+	timespec timespec.tv_sec  + swap store64
+	timespec timespec.tv_nsec + 0 store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
 end
 
 msleep fun # miliseconds --
-	timespec 0 + 0 store64
-	timespec 8 + swap 1000000 * store64
+	timespec timespec.tv_sec  + 0 store64
+	timespec timespec.tv_nsec + swap 1000000 * store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
 end
 
