@@ -1,0 +1,21 @@
+"io"     import
+"posix"  import
+"signal" import
+"time"   import
+
+sa sizeof(sigaction) []byte
+
+sa sigaction.sa_handler + &fun
+	"Program was interrupted!" println
+	1 SYS_exit syscall1
+end store64
+
+sa sigaction.sa_restorer + &rfun
+	SYS_rt_sigreturn syscall1 drop
+end store64
+
+sa sigaction.sa_flags + SA_RESTORER store32
+
+8 0 sa SIGINT SYS_rt_sigaction syscall4 drop
+
+10 sleep
