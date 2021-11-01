@@ -95,6 +95,7 @@ struct Token
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "&fun"sv,      Keyword_Kind::Function },
+	std::tuple { "&rfun"sv,     Keyword_Kind::Function },
 	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
@@ -257,6 +258,7 @@ struct Word
 
 	Kind kind;
 	uint64_t ival;
+	Token token;
 
 	Intrinsic_Kind intrinsic;
 

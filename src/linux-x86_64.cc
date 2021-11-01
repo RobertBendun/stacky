@@ -333,15 +333,23 @@ namespace linux::x86_64 {
 
 			asm_file << ";; fun " << name << '\n';
 			asm_file << Function_Prefix << def.id << ":\n";
-			asm_file << "	pop rax\n";
-			asm_file << "	mov rbx, [_stacky_callptr]\n";
-			asm_file << "	mov [_stacky_callstack+rbx*8], rax\n";
-			asm_file << "	add qword [_stacky_callptr], 1\n";
+			std::cout << def.token.sval << '\n';
+
+			if (def.token.sval != "&rfun") {
+				asm_file << "	pop rax\n";
+				asm_file << "	mov rbx, [_stacky_callptr]\n";
+				asm_file << "	mov [_stacky_callstack+rbx*8], rax\n";
+				asm_file << "	add qword [_stacky_callptr], 1\n";
+			}
 
 			std::sprintf(function_label, Function_Body_Prefix "%lu_", def.id);
 			generate_instructions(geninfo, def.function_body, asm_file, function_label, name);
 			asm_file << '\n';
-			emit_return(asm_file);
+			if (def.token.sval != "&rfun") {
+				emit_return(asm_file);
+			} else {
+				asm_file << "	ret\n";
+			}
 		}
 
 		asm_file << "global _start\n";

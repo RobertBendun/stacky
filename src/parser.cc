@@ -141,6 +141,7 @@ namespace parser
 						auto &word = words[fname];
 						word.kind = Word::Kind::Function;
 						word.id = Word::word_count++;
+						word.token = token;
 					} else {
 						ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Word, token, "Function should be preceeded by an identifier");
 						auto const& fname = tokens[i-1].sval;
@@ -148,6 +149,7 @@ namespace parser
 						auto &word = words[fname];
 						word.kind = Word::Kind::Function;
 						word.id = Word::word_count++;
+						word.token = token;
 					}
 				}
 				break;
