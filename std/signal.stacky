@@ -2,9 +2,13 @@ sigaction.sa_handler            0    constant
 sigaction.sa_sigaction          0    constant
 sigaction.sa_flags              136  constant
 sigaction.sa_mask               8    constant
+sigaction.sa_restorer           144  constant
 
 sizeof(sigaction)               152  constant
 sizeof(sigaction.sa_flags)      4    constant
 sizeof(sigaction.sa_handler)    8    constant
 sizeof(sigaction.sa_mask)       128  constant
 sizeof(sigaction.sa_sigaction)  8    constant
+sizeof(sigaction.sa_restorer)   8    constant
+
+SA_RESTORER 0x04000000 constant
