@@ -6,9 +6,9 @@ Board Board-Size []byte
 Buffer-Size 101 constant
 Buffer Buffer-Size []byte
 
-Print-Board fun
+Print-Board fun is
 	0 while dup Board-Size < do
-		dup Board + load8 if
+		dup Board + load8 bool if
 			dup Buffer + '*' store8
 		else
 			dup Buffer + ' ' store8
