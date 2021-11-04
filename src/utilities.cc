@@ -64,6 +64,13 @@ constexpr auto search_nth(It begin, It end, std::integral auto count, auto const
 	return found;
 }
 
+/// Calls function `func`. If function returns void, returns default value
+///
+/// @param func Function to be called
+/// @param def  Default value on `void` case
+/// @param args Parameters for `func` call
+/// @returns Default value on void, otherwise value produced by a function call
+/// @note Inspired by `callv` from Bisqwit compiler programming series on YT
 template<typename F, typename B, typename... A>
 static decltype(auto) callv(F&& func, B&& def, A&&... args)
 {
