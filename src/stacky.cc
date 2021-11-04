@@ -94,7 +94,6 @@ struct Token
 	uint64_t     ival = -1;
 	Keyword_Kind kval;
 
-	bool is_unsigned;
 	unsigned byte_size;
 };
 
@@ -204,12 +203,7 @@ struct Type
 
 	auto operator==(Type const& other) const
 	{
-		if (kind != other.kind) return false;
-		switch (kind)
-		{
-		case Type::Kind::Int: return is_unsigned == other.is_unsigned && byte_size == other.byte_size;
-		default:              return true;
-		}
+		return kind == other.kind;
 	}
 
 	auto operator!=(Type const& other) const { return !this->operator==(other); }
@@ -223,8 +217,6 @@ struct Type
 
 	Kind kind;
 	struct Operation const* op = nullptr;
-	bool is_unsigned = false;
-	unsigned short byte_size = 0;
 
 	static Type from(Token const& token);
 };
@@ -461,15 +453,9 @@ auto type_name(Type const& type) -> std::string
 	switch (type.kind) {
 	case Type::Kind::Bool: return "bool";
 	case Type::Kind::Pointer: return "ptr";
-	case Type::Kind::Int:
-		{
-			if (type.byte_size)
-				return fmt::format("{}{}", type.is_unsigned ? 'u' : 'i', 8 * type.byte_size);
-			return "u64";
-		}
-		break;
+	case Type::Kind::Int: return "u64";
 	}
-	return {};
+	unreachable("we don't have more type kinds");
 }
 
 template <> struct fmt::formatter<Type> : fmt::formatter<std::string> {
@@ -512,12 +498,6 @@ void unexpected_type(Operation const& op, Type::Kind exp1, Type::Kind exp2, Type
 	error_fatal(op.token, "expected type `{}` or `{}` but found `{}` for `{}`"_format(type_name({ exp1 }), type_name({ exp2 }), type_name(found), op.token.sval));
 }
 
-void unexpected_sign(Operation const& op, Type const& expected, Type const& found)
-{
-	error_fatal(op.token, "expected {} integer, found `{}`"_format(expected.is_unsigned ? "unsigned" : "signed", type_name(found)));
-}
-
-
 void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
 
 void typecheck(Word const& word)
@@ -546,11 +526,7 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 		if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
 		if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
 
-		if (lhs.is_unsigned != rhs.is_unsigned)
-			unexpected_sign(op, lhs, rhs);
-
 		if (emit_value) {
-			lhs.byte_size = std::max(lhs.byte_size, rhs.byte_size);
 			lhs.op = &op;
 			typestack.push_back(lhs);
 		}
@@ -631,8 +607,6 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					if (lhs.kind != rhs.kind) {
 						unexpected_type(op, lhs, rhs);
 					}
-					if (lhs.kind == Type::Kind::Int && lhs.is_unsigned != rhs.is_unsigned)
-						unexpected_sign(op, lhs, rhs);
 					push(Type::Kind::Bool, op);
 				}
 				break;
@@ -686,8 +660,6 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
 						unexpected_type(op, lhs, rhs);
 					}
-					if (lhs.is_unsigned != rhs.is_unsigned)
-						return unexpected_sign(op, lhs, rhs);
 					push(Type::Kind::Bool, op);
 				}
 				break;
@@ -699,7 +671,6 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					auto &lhs = top(1);
 					int_binop(op, lhs, rhs, false);
 					lhs.op = rhs.op = &op;
-					lhs.byte_size = rhs.byte_size = std::max(lhs.byte_size, rhs.byte_size);
 				}
 				break;
 
@@ -800,8 +771,6 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					Type t;
 					t.kind = Type::Kind::Int;
 					t.op = &op;
-					t.is_unsigned = true;
-					t.byte_size = op.intrinsic == Intrinsic_Kind::Random32 ? 4 : 8;
 					typestack.push_back(t);
 				}
 				break;

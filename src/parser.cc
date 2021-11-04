@@ -318,8 +318,6 @@ namespace parser
 				auto &op = body.emplace_back(Operation::Kind::Push_Int);
 				op.ival = token.ival;
 				op.token = token;
-				op.type.is_unsigned = token.is_unsigned;
-				op.type.byte_size = token.byte_size;
 			}
 			break;
 
@@ -477,6 +475,11 @@ trivial:
 							break;
 						}
 					}
+
+					// TODO maybe iterate forward and don't reverse?
+					std::reverse(std::begin(effect.input), std::end(effect.input));
+					std::reverse(std::begin(effect.output), std::end(effect.output));
+
 					stack_effect_declaration = std::move(effect);
 					i = 0;
 				}
