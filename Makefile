@@ -55,6 +55,7 @@ clean:
 	rm -f $(shell find tests examples std -type f -executable -not -name "*.stacky" -print)
 	rm -f src/enum-names.cc
 	rm -rf build
+	rm -rf etc/doc
 
 .PHONY: stat
 stat:
