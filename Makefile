@@ -67,3 +67,7 @@ stat-cpp:
 .PHONY: install-nvim
 install-nvim: etc/stacky.vim
 	cp $< /usr/share/nvim/runtime/syntax/
+
+.PHONY: doc
+doc:
+	doxygen etc/Doxyfile
