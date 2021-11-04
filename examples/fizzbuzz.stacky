@@ -12,10 +12,10 @@ printed 1 []byte
 		printed 0 store8
 	end
 
-	printed load8 if
+	printed load8 bool if
 		dup .
 	else
 		nl
 	end
 	1 +
-end
+end drop
