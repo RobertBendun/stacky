@@ -131,9 +131,8 @@ namespace parser
 			case Keyword_Kind::While:
 			case Keyword_Kind::Bool:
 			case Keyword_Kind::Typename:
-			case Keyword_Kind::Stack_Effect_Begin:
 			case Keyword_Kind::Stack_Effect_Divider:
-			case Keyword_Kind::Stack_Effect_End:
+			case Keyword_Kind::Stack_Effect_Definition:
 				break;
 
 			case Keyword_Kind::Function:
@@ -278,238 +277,290 @@ namespace parser
 		return true;
 	}
 
-	void transform_into_operations(std::span<Token> const& tokens, std::vector<Operation> &body, Words& words)
+	void translate_operation(std::span<Token> const& tokens, std::vector<Operation>& body, Words& words)
 	{
-		std::optional<Stack_Effect> stack_effect_declaration;
+		switch (auto const& token = tokens.back(); token.kind) {
+		case Token::Kind::Address_Of:
+			{
+				auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
+				op.symbol_prefix = Function_Prefix;
+				// TODO this may throw if we are trying to take address of non existing word
+				op.ival = words.at(token.sval.substr(1)).id;
+				op.token = token;
+			}
+			break;
 
+		case Token::Kind::Char:
+			{
+				auto &op = body.emplace_back(Operation::Kind::Push_Int);
+				op.token = token;
+				op.ival = 0;
+				// TODO investigate what type should char have. Since we support multibyte char literals, maybe it should have
+				// the smallest type containing posibble value?
+				op.type = Type::Kind::Int;
+
+				parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2),
+						[&token, value = &op.ival, offset = 0](char c) mutable {
+							*value |= c << 8 * offset++;
+							// TODO 64-bit platform specific limitation
+							if (offset > 8) {
+								error(token, "Character literal cannot be longer then 8 bytes on this platform!");
+								return false;
+							}
+							return true;
+						}
+				);
+			}
+			break;
+
+		case Token::Kind::Integer:
+			{
+				auto &op = body.emplace_back(Operation::Kind::Push_Int);
+				op.ival = token.ival;
+				op.token = token;
+				op.type.is_unsigned = token.is_unsigned;
+				op.type.byte_size = token.byte_size;
+			}
+			break;
+
+		case Token::Kind::String:
+			{
+				auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
+				op.symbol_prefix = String_Prefix;
+				op.token = token;
+				op.ival = token.ival;
+			}
+			break;
+
+		case Token::Kind::Word:
+			{
+				auto word_it = words.find(token.sval);
+				ensure(word_it != std::end(words), "Word `{}` has not been defined yet"_format(token.sval));
+				switch (auto word = word_it->second; word.kind) {
+				case Word::Kind::Intrinsic:
+					{
+						auto &op = body.emplace_back(Operation::Kind::Intrinsic);
+						op.intrinsic = word.intrinsic;
+						op.token = token;
+					}
+					break;
+				case Word::Kind::Integer:
+					{
+						// TODO investigate if word.token is set properly for integers
+						// TODO Integer words erease type
+						auto &op = body.emplace_back(Operation::Kind::Push_Int);
+						op.ival = word.ival;
+						op.token = token;
+					}
+					break;
+				case Word::Kind::Array:
+					{
+						auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
+						op.symbol_prefix = Symbol_Prefix;
+						op.ival = word.id;
+						op.sval = token.sval;
+						op.token = token;
+					}
+					break;
+				case Word::Kind::Function:
+					{
+						auto &op = body.emplace_back(Operation::Kind::Call_Symbol);
+						op.sval = token.sval;
+						op.token = token;
+						op.symbol_prefix = Function_Prefix;
+						op.ival = word.id;
+					}
+					break;
+				}
+			}
+			break;
+
+		case Token::Kind::Keyword:
+			{
+				switch (token.kval) {
+				case Keyword_Kind::Array:
+				case Keyword_Kind::Constant:
+				case Keyword_Kind::End:
+				case Keyword_Kind::Function:
+				case Keyword_Kind::Stack_Effect_Definition:
+				case Keyword_Kind::Stack_Effect_Divider:
+					unreachable("`translate_operation` only resolves simple operations. This should be handled by either funciton or global parser");
+					break;
+				case Keyword_Kind::Import:
+				case Keyword_Kind::Include:
+					unreachable("all includes should be eliminated in file inclusion process");
+					break;
+
+				case Keyword_Kind::Do:     body.emplace_back(Operation::Kind::Do,     token); break;
+				case Keyword_Kind::Else:   body.emplace_back(Operation::Kind::Else,   token); break;
+				case Keyword_Kind::If:     body.emplace_back(Operation::Kind::If,     token); break;
+				case Keyword_Kind::Return: body.emplace_back(Operation::Kind::Return, token); break;
+				case Keyword_Kind::While:  body.emplace_back(Operation::Kind::While,  token); break;
+
+				case Keyword_Kind::Bool:
+					{
+						auto &op = body.emplace_back(Operation::Kind::Push_Int);
+						op.ival = token.sval[0] == 't';
+						op.token = token;
+						op.type = Type::Kind::Bool;
+					}
+					break;
+				case Keyword_Kind::Typename:
+					{
+						auto &op = body.emplace_back(Operation::Kind::Cast);
+						op.token = token;
+						op.type = Type::from(token);
+					}
+					break;
+				}
+			}
+			break;
+		}
+	}
+
+	void function_into_operations(std::span<Token> const& tokens, Word &func, Words& words)
+	{
+		auto &body = func.function_body;
 		for (unsigned i = tokens.size() - 1; i < tokens.size(); --i) {
-			auto &token = tokens[i];
-			switch (token.kind) {
-			case Token::Kind::Address_Of:
-				{
-					auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
-					op.symbol_prefix = Function_Prefix;
-					op.ival = words.at(token.sval.substr(1)).id;
-					op.token = token;
-				}
+			auto const& token = tokens[i];
+			if (token.kind != Token::Kind::Keyword) {
+trivial:
+				auto const trimmed = tokens.subspan(0, i+1);
+				translate_operation(trimmed, body, words);
+				continue;
+			}
+
+			switch (token.kval) {
+			// Reasoning is that functions does not introduce scope, and definition inside them is global which is
+			// counter-intuitive for most programmers
+			case Keyword_Kind::Array:
+			case Keyword_Kind::Constant:
+				error(token, "Definitions of arrays or constants are not allowed inside function bodies!");
 				break;
 
-			case Token::Kind::Char:
+			case Keyword_Kind::End:
 				{
-					auto &op = body.emplace_back(Operation::Kind::Push_Int);
-					op.token = token;
-					op.ival = 0;
-					op.type = Type::Kind::Bool;
+					unsigned const block_end = i;
+					unsigned block_start, end_stack = 1;
+					ensure_fatal(i >= 1, token, "Unexpected `end`.");
 
-					parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2),
-							[&token, value = &op.ival, offset = 0](char c) mutable {
-								*value |= c << 8 * offset++;
-								if (offset > 8) {
-									error(token, "Character literal cannot be longer then 8 bytes on this platform!");
-									return false;
-								}
-								return true;
+					for (block_start = i-1; block_start < tokens.size() && end_stack > 0; --block_start) {
+						if (auto &t = tokens[block_start]; t.kind == Token::Kind::Keyword) {
+							switch (t.kval) {
+							case Keyword_Kind::End:      ++end_stack; break;
+							case Keyword_Kind::Function: --end_stack; break;
+							case Keyword_Kind::If:       --end_stack; break;
+							case Keyword_Kind::While:    --end_stack; break;
+							default:
+								;
 							}
-					);
-				}
-				break;
+						}
+					}
 
-			case Token::Kind::Integer:
-				{
-					auto &op = body.emplace_back(Operation::Kind::Push_Int);
-					op.ival = token.ival;
-					op.token = token;
-					op.type.is_unsigned = token.is_unsigned;
-					op.type.byte_size = token.byte_size;
-				}
-				break;
+					// We reached start of the file but there are still some ends on the end_stack
+					ensure_fatal(end_stack == 0, token, "Unexpected `end`.");
+					++block_start;
 
-			case Token::Kind::String:
-				{
-					auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
-					op.symbol_prefix = String_Prefix;
-					op.token = token;
-					op.ival = token.ival;
-				}
-				break;
+					auto const& start_token = tokens[block_start];
 
-			case Token::Kind::Word:
-				{
-					auto word_it = words.find(token.sval);
-					ensure(word_it != std::end(words), token, "Word `{}` has not been defined yet"_format(token.sval));
-					switch (auto word = word_it->second; word.kind) {
-					case Word::Kind::Intrinsic:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Intrinsic);
-							op.intrinsic = word.intrinsic;
-							op.token = token;
-						}
-						break;
-					case Word::Kind::Integer:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Push_Int);
-							op.ival = word.ival;
-						}
-						break;
-					case Word::Kind::Array:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
-							op.symbol_prefix = Symbol_Prefix;
-							op.ival = word.id;
-							op.sval = token.sval;
-							op.token = token;
-						}
-						break;
-					case Word::Kind::Function:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Call_Symbol);
-							op.sval = token.sval;
-							op.token = token;
-							op.symbol_prefix = Function_Prefix;
-							op.ival = word.id;
-						}
+					if (start_token.kval != Keyword_Kind::Function) {
+						body.emplace_back(Operation::Kind::End, token);
 						break;
 					}
-				}
-				break;
 
-			case Token::Kind::Keyword:
-				{
-					switch (token.kval) {
-					case Keyword_Kind::Bool:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Push_Int);
-							op.ival = token.sval[0] == 't';
-							op.token = token;
-							op.type = Type::Kind::Bool;
-						}
-						break;
-
-					case Keyword_Kind::Typename:
-						{
-							auto &op = body.emplace_back(Operation::Kind::Cast);
-							op.token = token;
-							op.type = Type::from(token);
-						}
-						break;
-
-					case Keyword_Kind::End:
-						{
-							unsigned j, end_stack = 1;
-							ensure_fatal(i >= 1, token, "Unexpected `end`.");
-							for (j = i-1; j < tokens.size() && end_stack > 0; --j) {
-								if (auto &t = tokens[j]; t.kind == Token::Kind::Keyword)
-									switch (t.kval) {
-									case Keyword_Kind::End:      ++end_stack; break;
-									case Keyword_Kind::Function: --end_stack; break;
-									case Keyword_Kind::If:       --end_stack; break;
-									case Keyword_Kind::While:    --end_stack; break;
-									default:
-										;
-									}
-							}
-
-							ensure_fatal(end_stack == 0, token, "Unexpected `end`.");
-							++j;
-
-							if (tokens[j].kval == Keyword_Kind::Function) {
-								Word *word = nullptr;
-
-								if (tokens[j].sval[0] == '&') {
-									auto &func = words.at(Anonymous_Function_Prefix + std::to_string(tokens[j].ival));
-									word = &func;
-									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
-									i = j;
-
-									auto &op = body.emplace_back(Operation::Kind::Push_Symbol);
-									op.symbol_prefix = Function_Prefix;
-									op.ival = func.id;
-									op.token = token;
-								} else {
-									auto &func = words.at(tokens[j-1].sval);
-									word = &func;
-									transform_into_operations({ tokens.begin() + j + 1, i - j - 1 }, func.function_body, words);
-									i = j-1;
-								}
-
-								if (stack_effect_declaration) {
-									assert_msg(word != nullptr, "sanity check");
-									word->effect = *std::move(stack_effect_declaration);
-									word->has_effect = true;
-									stack_effect_declaration = std::nullopt;
-								}
-							} else {
-								body.emplace_back(Operation::Kind::End, token);
-							}
-						}
-						break;
-
-						case Keyword_Kind::Stack_Effect_Begin:
-						case Keyword_Kind::Stack_Effect_Divider:
-							assert_msg(false, "unreachable: Stack_Effect_End should collapse this tokens into type definition");
-							break;
-
-						case Keyword_Kind::Stack_Effect_End:
-							{
-								bool divider_has_been_seen = false;
-								Stack_Effect effect;
-
-								for (unsigned j = i-1; j < tokens.size(); --j) {
-									if (tokens[j].kind == Token::Kind::Integer) {
-										assert_msg(false, "unimplemented: Type variables are not implemented");
-									}
-
-									if (tokens[j].kind != Token::Kind::Keyword) {
-										error(tokens[j], "Type specification only allows integers or type names");
-										break;
-									}
-
-									switch (tokens[j].kval) {
-									case Keyword_Kind::Stack_Effect_End:
-										error_fatal(tokens[j], "Nested type definitions are not allowed (`is` inside type definition)");
-										break;
-
-									case Keyword_Kind::Stack_Effect_Divider:
-										ensure(!divider_has_been_seen, tokens[j], "Nested type definitions are not allowed (multiple `--` inside type definition)");
-										divider_has_been_seen = true;
-										break;
-
-									case Keyword_Kind::Typename:
-										effect[divider_has_been_seen].push_back(Type::from(tokens[j]));
-										break;
-
-									case Keyword_Kind::Stack_Effect_Begin:
-										// TODO This is a hack and result of a using same code for global and local scope parsing.
-										// To avoid this we must seperate type definition extraction from transforming into operations
-										// Then more sophisticated ensure statement may be used.
-										// Current approach does not allow connecting types with function definitions.
-										ensure(j == 0, tokens[i], "Types can only be specified for functions");
-										// ensure(j >= 1 && tokens[j-1].kind == Token::Kind::Keyword && tokens[j-1].kval == Keyword_Kind::Function, tokens[i], "Types can only be specified for functions");
-										stack_effect_declaration = std::move(effect);
-										i = j;
-										break;
-
-									default:
-										assert_msg(false, "TODO error");
-									}
-								}
-							}
-							break;
-
-						case Keyword_Kind::Import:
-						case Keyword_Kind::Include: assert_msg(false, "unreachable: all includes should be eliminated in file inclusion process"); break;
-						case Keyword_Kind::Array:    i -= 2; break;
-						case Keyword_Kind::Constant: i -= 2; break;
-						case Keyword_Kind::Function: error_fatal(token, "Missing `end` for this function definition"); break;
-
-						case Keyword_Kind::Do:          body.emplace_back(Operation::Kind::Do, token);     break;
-						case Keyword_Kind::Else:        body.emplace_back(Operation::Kind::Else, token);   break;
-						case Keyword_Kind::If:          body.emplace_back(Operation::Kind::If, token);     break;
-						case Keyword_Kind::Return:      body.emplace_back(Operation::Kind::Return, token); break;
-						case Keyword_Kind::While:       body.emplace_back(Operation::Kind::While, token);  break;
+					Word *word = nullptr;
+					if (start_token.sval.front() == '&') {
+						word = &words.at(Anonymous_Function_Prefix + std::to_string(tokens[block_start].ival));
+						auto &op =  body.emplace_back(Operation::Kind::Push_Symbol);
+						op.symbol_prefix = Function_Prefix;
+						op.ival = word->id;
+						op.token = start_token;
+						i = block_start;
+					} else {
+						// TODO is this safe? dunno
+						word = &words.at(tokens[block_start-1].sval);
+						i = block_start - 1; // remove function name
 					}
+
+					function_into_operations({ tokens.begin() + block_start + 1, block_end - block_start - 1 }, *word, words);
 				}
 				break;
+
+			default:
+				goto trivial;
+			}
+		}
+
+		std::reverse(std::begin(body), std::end(body));
+		crossreference(body);
+	}
+
+	void into_operations(std::span<Token> const& tokens, std::vector<Operation> &body, Words &words)
+	{
+		for (unsigned i = tokens.size() - 1; i < tokens.size(); --i) {
+			auto const& token = tokens[i];
+			if (token.kind != Token::Kind::Keyword) {
+trivial:
+				auto const trimmed = tokens.subspan(0, i+1);
+				translate_operation(trimmed, body, words);
+				continue;
+			}
+
+			switch (token.kval) {
+			// TODO this is a hack
+			case Keyword_Kind::Array:    i -= 2; break;
+			case Keyword_Kind::Constant: i -= 2; break;
+
+			case Keyword_Kind::End:
+				{
+					unsigned const block_end = i;
+					unsigned block_start, end_stack = 1;
+					ensure_fatal(i >= 1, token, "Unexpected `end`.");
+
+					for (block_start = i-1; block_start < tokens.size() && end_stack > 0; --block_start) {
+						if (auto &t = tokens[block_start]; t.kind == Token::Kind::Keyword) {
+							switch (t.kval) {
+							case Keyword_Kind::End:      ++end_stack; break;
+							case Keyword_Kind::Function: --end_stack; break;
+							case Keyword_Kind::If:       --end_stack; break;
+							case Keyword_Kind::While:    --end_stack; break;
+							default:
+								;
+							}
+						}
+					}
+
+					// We reached start of the file but there are still some ends on the end_stack
+					ensure_fatal(end_stack == 0, token, "Unexpected `end`.");
+					++block_start;
+
+					auto const& start_token = tokens[block_start];
+
+					if (start_token.kval != Keyword_Kind::Function) {
+						body.emplace_back(Operation::Kind::End, token);
+						break;
+					}
+
+					Word *word = nullptr;
+					if (start_token.sval.front() == '&') {
+						word = &words.at(Anonymous_Function_Prefix + std::to_string(tokens[block_start].ival));
+						auto &op =  body.emplace_back(Operation::Kind::Push_Symbol);
+						op.symbol_prefix = Function_Prefix;
+						op.ival = word->id;
+						op.token = start_token;
+						i = block_start;
+					} else {
+						// TODO is this safe? dunno
+						word = &words.at(tokens[block_start-1].sval);
+						i = block_start - 1; // remove function name
+					}
+
+					function_into_operations({ tokens.begin() + block_start + 1, block_end - block_start - 1 }, *word, words);
+				}
+				break;
+
+			default:
+				goto trivial;
 			}
 		}
 

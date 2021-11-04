@@ -62,8 +62,7 @@ enum class Keyword_Kind
 
 	// Type definitions
 	Typename,
-	Stack_Effect_Begin,
-	Stack_Effect_End,
+	Stack_Effect_Definition,
 	Stack_Effect_Divider,
 
 	// Definitions
@@ -101,9 +100,8 @@ struct Token
 
 static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "&fun"sv,      Keyword_Kind::Function },
-	std::tuple { "::"sv,        Keyword_Kind::Stack_Effect_Begin },
 	std::tuple { "--"sv,        Keyword_Kind::Stack_Effect_Divider },
-	std::tuple { "is"sv,        Keyword_Kind::Stack_Effect_End },
+	std::tuple { "is"sv,        Keyword_Kind::Stack_Effect_Definition },
 	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
 	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
@@ -135,7 +133,10 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "while"sv,     Keyword_Kind::While }
 );
 
-static_assert(int(Keyword_Kind::Last)+1 == 16, "Exhaustive definition of keywords lookup");
+// This value represents number of keywords inside enumeration
+// Since one keyword kind may represents several symbols,
+// we relay on number of kinds defined
+static_assert(int(Keyword_Kind::Last)+1 == 15, "Exhaustive definition of keywords lookup");
 
 
 enum class Intrinsic_Kind
@@ -179,7 +180,7 @@ enum class Intrinsic_Kind
 
 		// --- MEMORY ---
 		Load,  // previously known as Read8, Read16...
-	 	Store, // previously known as Write8, Write16, ...
+		Store, // previously known as Write8, Write16, ...
 		Top,
 		Call,
 
@@ -1018,7 +1019,7 @@ auto main(int argc, char **argv) -> int
 	register_intrinsics(geninfo.words);
 	parser::register_definitions(tokens, geninfo.words);
 
-	parser::transform_into_operations(tokens, geninfo.main, geninfo.words);
+	parser::into_operations(tokens, geninfo.main, geninfo.words);
 	if (Compilation_Failed)
 		return 1;
 
