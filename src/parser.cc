@@ -336,7 +336,7 @@ namespace parser
 			{
 				auto word_it = words.find(token.sval);
 				ensure(word_it != std::end(words), "Word `{}` has not been defined yet"_format(token.sval));
-				switch (auto word = word_it->second; word.kind) {
+				switch (auto &word = word_it->second; word.kind) {
 				case Word::Kind::Intrinsic:
 					{
 						auto &op = body.emplace_back(Operation::Kind::Intrinsic);
@@ -369,6 +369,7 @@ namespace parser
 						op.token = token;
 						op.symbol_prefix = Function_Prefix;
 						op.ival = word.id;
+						op.word = &word;
 					}
 					break;
 				}
@@ -384,7 +385,10 @@ namespace parser
 				case Keyword_Kind::Function:
 				case Keyword_Kind::Stack_Effect_Definition:
 				case Keyword_Kind::Stack_Effect_Divider:
-					unreachable("`translate_operation` only resolves simple operations. This should be handled by either funciton or global parser");
+					unreachable(
+						"`translate_operation` only resolves simple operations (Not {}). This should be handled by either funciton or global parser"_format(
+							Location_Keyword_Kind_Names[(int)token.kval]
+						));
 					break;
 				case Keyword_Kind::Import:
 				case Keyword_Kind::Include:
@@ -420,6 +424,8 @@ namespace parser
 
 	void function_into_operations(std::span<Token> const& tokens, Word &func, Words& words)
 	{
+		std::optional<Stack_Effect> stack_effect_declaration = std::nullopt;
+
 		auto &body = func.function_body;
 		for (unsigned i = tokens.size() - 1; i < tokens.size(); --i) {
 			auto const& token = tokens[i];
@@ -436,6 +442,44 @@ trivial:
 			case Keyword_Kind::Array:
 			case Keyword_Kind::Constant:
 				error(token, "Definitions of arrays or constants are not allowed inside function bodies!");
+				break;
+
+			case Keyword_Kind::Stack_Effect_Definition:
+				{
+					// 1. Only typenames or numbers (chosen syntax for generics) are allowed
+					// 2. Must be preceeded by function (in another words it extends to the start of tokens span)
+					bool divider_has_been_seen = false;
+					Stack_Effect effect;
+
+					for (unsigned j = i-1; j < tokens.size(); --j) {
+						auto const &token = tokens[j];
+						if (token.kind == Token::Kind::Integer) {
+							unreachable("unimplemented: Type variables");
+						}
+						if (token.kind != Token::Kind::Keyword) {
+							error(token, "Type specification only allows integers or type names");
+							break;
+						}
+
+						switch (token.kval) {
+						case Keyword_Kind::Stack_Effect_Definition:
+							error_fatal(token, "Nested type definitions are not allowed (`is` inside type definition)");
+							break;
+						case Keyword_Kind::Stack_Effect_Divider:
+							ensure(!divider_has_been_seen, tokens[j], "Nested type definitions are not allowed (multiple `--` inside type definition");
+							divider_has_been_seen = true;
+							break;
+						case Keyword_Kind::Typename:
+							effect[divider_has_been_seen].push_back(Type::from(token));
+							break;
+						default:
+							ensure_fatal(j == 0, token, "Types can only be specified for functions");
+							break;
+						}
+					}
+					stack_effect_declaration = std::move(effect);
+					i = 0;
+				}
 				break;
 
 			case Keyword_Kind::End:
@@ -489,6 +533,11 @@ trivial:
 			default:
 				goto trivial;
 			}
+		}
+
+		if (stack_effect_declaration) {
+			func.has_effect = true;
+			func.effect = *std::move(stack_effect_declaration);
 		}
 
 		std::reverse(std::begin(body), std::end(body));

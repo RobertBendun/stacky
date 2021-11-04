@@ -229,12 +229,14 @@ struct Type
 	static Type from(Token const& token);
 };
 
+using Typestack = std::vector<Type>;
+
 struct Stack_Effect
 {
-	std::vector<Type> input;
-	std::vector<Type> output;
+	Typestack input;
+	Typestack output;
 
-	auto& operator[](bool is_output) { return is_output ? output : input; }
+	auto& operator[](bool is_input) { return is_input ? input : output; }
 
 	auto string() const -> std::string
 	{
@@ -264,6 +266,7 @@ struct Operation
 	uint64_t ival;
 	std::string sval;
 	Intrinsic_Kind intrinsic;
+	struct Word *word = nullptr;
 
 	static constexpr unsigned Empty_Jump = -1;
 	unsigned jump = Empty_Jump;
@@ -452,7 +455,6 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 }
 
 
-using Typestack = std::vector<Type>;
 
 auto type_name(Type const& type) -> std::string
 {
@@ -515,10 +517,25 @@ void unexpected_sign(Operation const& op, Type const& expected, Type const& foun
 	error_fatal(op.token, "expected {} integer, found `{}`"_format(expected.is_unsigned ? "unsigned" : "signed", type_name(found)));
 }
 
-void typecheck(std::vector<Operation> &ops)
+
+void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
+
+void typecheck(Word const& word)
 {
+	auto copy = word.effect.input;
+	typecheck(word.function_body, std::move(copy), word.effect.output);
+}
+
+void typecheck(std::vector<Operation> const& ops)
+{
+	typecheck(ops, {}, {});
+}
+
+void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected)
+{
+	bool return_has_been_seen = false;
+
 	std::vector<std::tuple<Typestack, Operation::Kind>> blocks;
-	Typestack typestack;
 
 	auto const pop = [&typestack]() -> Type { auto retval = std::move(typestack.back()); typestack.pop_back(); return retval; };
 	auto const push = [&typestack](Type::Kind kind, Operation const& op) { typestack.push_back({ kind, &op }); };
@@ -751,8 +768,8 @@ void typecheck(std::vector<Operation> &ops)
 			case Intrinsic_Kind::Store:
 				{
 					ensure_enough_arguments(typestack, op, 2);
-					auto const addr = pop();
 					auto const val = pop();
+					auto const addr = pop();
 					if (addr.kind != Type::Kind::Pointer) unexpected_type(op, { Type::Kind::Pointer }, addr);
 					if (val.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, addr);
 				}
@@ -829,6 +846,12 @@ void typecheck(std::vector<Operation> &ops)
 
 				switch (opened) {
 				case Operation::Kind::If:
+					if (return_has_been_seen) {
+						typestack = std::move(types);
+						return_has_been_seen = false;
+						break;
+					}
+
 					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
 						error(op.token, "`if` without `else` should have the same type stack shape before and after execution");
 
@@ -919,17 +942,65 @@ void typecheck(std::vector<Operation> &ops)
 
 
 		case Operation::Kind::Call_Symbol:
+			{
+				ensure_fatal(op.word != nullptr && op.word->has_effect, op.token,
+						"Cannot typecheck word `{}` without type signature"_format(op.sval));
+				auto const& effect = op.word->effect;
+				ensure_enough_arguments(typestack, op, effect.input.size());
+
+				for (unsigned i = effect.input.size() - 1; i < effect.input.size(); --i) {
+					auto const &in = effect.input[i];
+					if (auto top = pop(); in != top)
+						unexpected_type(op, in, top);
+				}
+
+				typestack.insert(std::cend(typestack), std::cbegin(effect.output), std::cend(effect.output));
+			}
+			break;
 		case Operation::Kind::Return:
-			assert_msg(false, "unimplemented");
+			return_has_been_seen = true;
+			if (auto [e, a] = std::mismatch(std::cbegin(expected), std::cend(expected), std::cbegin(typestack), std::cend(typestack)); e != std::cend(expected) || a != std::cend(typestack)) {
+				error("function body should have the same type stack as described in stack effect signature");
+				if (expected.size() != typestack.size()) {
+					if (e == std::cend(expected)) {
+						info("there are {} excess values in function body"_format(std::distance(a, std::cend(typestack))));
+						print_typestack_trace(a, std::cend(typestack), "excess");
+					} else {
+						info("there are missing {} values in function body"_format(std::distance(e, std::cend(expected))));
+						print_typestack_trace(e, std::cend(expected), "missing");
+					}
+				} else {
+					// stacks are equal in size, so difference is in types not their amount
+					for (; e != std::cend(expected) && a != std::cend(typestack); ++e, ++a) {
+						if (e->kind == a->kind) continue;
+						unexpected_type({}, *e, *a);
+					}
+				}
+				exit(1);
+			}
 		}
 	}
 
-	if (typestack.empty())
-		return;
-
-	error(ops.back().token, "{} values has been left on the stack"_format(typestack.size()));
-	print_typestack_trace(typestack);
-	exit(1);
+	// TODO fill types
+	if (auto [e, a] = std::mismatch(std::cbegin(expected), std::cend(expected), std::cbegin(typestack), std::cend(typestack)); e != std::cend(expected) || a != std::cend(typestack)) {
+		error("function body should have the same type stack as described in stack effect signature");
+		if (expected.size() != typestack.size()) {
+			if (e == std::cend(expected)) {
+				info("there are {} excess values in function body"_format(std::distance(a, std::cend(typestack))));
+				print_typestack_trace(a, std::cend(typestack), "excess");
+			} else {
+				info("there are missing {} values in function body"_format(std::distance(e, std::cend(expected))));
+				print_typestack_trace(e, std::cend(expected), "missing");
+			}
+		} else {
+			// stacks are equal in size, so difference is in types not their amount
+			for (; e != std::cend(expected) && a != std::cend(typestack); ++e, ++a) {
+				if (e->kind == a->kind) continue;
+				unexpected_type({}, *e, *a);
+			}
+		}
+		exit(1);
+	}
 }
 
 auto main(int argc, char **argv) -> int
@@ -1031,6 +1102,10 @@ auto main(int argc, char **argv) -> int
 	}
 
 	if (compiler_arguments.typecheck) {
+		for (auto const& [_, word] : geninfo.words) {
+			if (!word.has_effect) continue;
+			typecheck(word);
+		}
 		typecheck(geninfo.main);
 	}
 
