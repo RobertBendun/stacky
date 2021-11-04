@@ -10,10 +10,10 @@ In mostly random order:
 - [x] Easy to expand with new keywords and intrinsics
 - [x] Turing complete
 - [ ] Static type system (currently beeing developed)
-- [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky)
-- [ ] Compile time code execution
+- [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky or use [Multiboot](https://www.gnu.org/software/grub/manual/multiboot/multiboot.html) standard)
+- [ ] (Limited) Compile time code execution
 - [ ] Multiplatform (at least supporting Linux ARM and x86\_64, maybe WebAssembly)
-- [ ] Ability to interact with C code (but not depending on it)
+- [ ] Ability to interact with C code (but not depending on it) (WIP for signals support)
 
 with some basic optimizations and good error reporting.
 
