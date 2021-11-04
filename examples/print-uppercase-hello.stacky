@@ -8,6 +8,6 @@ Hello Hello-Count []byte
 	2dup + load8 32 -
 	over Hello + swap store8
 	1 +
-end
+end 2drop
 
 Hello println

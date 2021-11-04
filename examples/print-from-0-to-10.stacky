@@ -4,4 +4,4 @@
 0 while dup 11 = ! do
 	dup .
 	1 +
-end
+end drop
