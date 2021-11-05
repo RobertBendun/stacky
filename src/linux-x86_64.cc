@@ -213,7 +213,7 @@ namespace linux::x86_64 {
 					case '1': offset = 1; break;
 					case '3': offset = 2; break;
 					case '6': offset = 3; break;
-					default: assert_msg(false, "unreachable");
+					default: unreachable("Load intrinsic cannot have different name");
 				}
 				asm_file << "	;; load" << (8 << offset) << "\n";
 				asm_file << "	pop rax\n";
@@ -231,7 +231,7 @@ namespace linux::x86_64 {
 					case '1': offset = 1; break;
 					case '3': offset = 2; break;
 					case '6': offset = 3; break;
-					default: assert_msg(false, "unreachable ");
+					default: unreachable("Store intrinsic cannot have different name");
 				}
 				asm_file << "	;; store" << (8 << offset) << "\n";
 				asm_file << "	pop rbx\n";

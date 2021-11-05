@@ -844,6 +844,8 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					break;
 
 				case Operation::Kind::Else:
+					ensure(!return_has_been_seen, "typechecking does not fully support return right now");
+
 					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
 						error(op.token, "`if` ... `else` and `else` ... `end` branches must have matching typestacks");
 						if (types.size() != typestack.size()) {
@@ -865,12 +867,9 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					}
 					break;
 
-				case Operation::Kind::While:
-					assert_msg(false, "unreachable");
-					break;
-
 				case Operation::Kind::Do:
 					{
+						ensure(!return_has_been_seen, "typechecking does not fully support return right now");
 						auto [while_types, opened] = std::move(blocks.back());
 						blocks.pop_back();
 						assert(opened == Operation::Kind::While);
@@ -897,6 +896,8 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 					}
 					break;
 
+
+				case Operation::Kind::While:
 				case Operation::Kind::Call_Symbol:
 				case Operation::Kind::Cast:
 				case Operation::Kind::End:
@@ -904,7 +905,7 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typesta
 				case Operation::Kind::Push_Int:
 				case Operation::Kind::Push_Symbol:
 				case Operation::Kind::Return:
-					assert_msg(false, "unreachable");
+					unreachable("all statements falling into this case does not open blocks");
 				}
 			}
 			break;
