@@ -1,0 +1,31 @@
+"io" import
+
+10^ fun u64 -- u64 is
+	1 while over 0 > do 10 * swap 1 - swap end swap drop
+end
+
+
+
+fib_rec fun u64 -- u64 is
+	dup 1 > if
+		dup  1 - fib_rec
+		swap 2 - fib_rec
+		+
+	else
+		drop
+		1
+	end
+end
+
+fib fun u64 -- u64 is
+	1 1 while rot dup 1 > do
+		1 - rot rot
+		over + swap
+	end 2drop
+end
+
+0 while dup 10 < do
+	"recursive: "  print dup fib_rec 2 aprint-int
+	" iterative: " print dup fib     2 aprint-int nl
+	1 +
+end drop

@@ -5,6 +5,10 @@ nl fun is
 	'\n' top 1 swap stdout SYS_write syscall3 drop drop
 end
 
+space fun is
+	' ' top 1 swap stdout SYS_write syscall3 drop drop
+end
+
 print fun ptr -- is
 	dup
 	dup while dup load8 0 != do 1 + end swap - # strlen
@@ -42,6 +46,20 @@ print-int fun u64 -- is
 	'0' + Print_Buffer swap store8
 	drop
 	Print_Buffer stdout SYS_write syscall3 drop
+end
+
+# print int aligned to n characters to the right by ' '
+aprint-int fun u64 u64 -- is
+	over digits10
+	2dup > if
+		- while dup 0 > do
+			space
+			1 -
+		end drop
+	else
+		2drop
+	end
+	print-int
 end
 
 . fun u64 -- is

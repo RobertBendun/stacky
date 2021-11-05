@@ -39,18 +39,13 @@ hello, world
 
 "Date is " print
 
-2cell-print fun
-	dup 10 < if "0" print end
-	print-int
-end
-
-now # returns seconds in Unix time
+now  # returns seconds in Unix time
 date # returns year, month, day, hours, minutes
-	print-int "-" print
-	2cell-print "-" print
-	2cell-print " " print
-	2cell-print ":" print
-	2cell-print
+	   print-int "-" print
+	2 aprint-int "-" print
+	2 aprint-int " " print
+	2 aprint-int ":" print
+	2 aprint-int
 ```
 
 ```console
