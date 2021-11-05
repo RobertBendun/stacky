@@ -4,15 +4,14 @@ Compiled_Examples=$(basename $(Examples))
 Compiler=g++
 Options=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses
 
-Compiler_Sources=src/stacky.cc \
-								 src/utilities.cc \
-								 src/errors.cc \
-								 src/enum-names.cc \
-								 src/parser.cc \
-								 src/lexer.cc \
-								 src/linux-x86_64.cc \
-								 src/optimizer.cc \
-								 src/debug.cc
+Objects=build/arguments.o \
+				build/lexer.o \
+				build/unicode.o \
+				build/parser.o \
+				build/linux-x86_64.o \
+				build/optimizer.o \
+				build/debug.o \
+				build/types.o
 
 .PHONY:
 all: stacky test $(Compiled_Examples)
@@ -22,13 +21,16 @@ all: stacky test $(Compiled_Examples)
 build:
 	mkdir build -p
 
-stacky: $(Compiler_Sources) build/arguments.o
-	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt build/arguments.o
+stacky: src/stacky.cc $(Objects) src/enum-names.cc
+	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt $(Objects)
 
-build/arguments.o: src/arguments.cc src/arguments.hh build
+build/arguments.o: src/arguments.cc src/*.hh src/arguments.hh build
 	$(Compiler) $(Options) $< -o $@ -c -O3 -lboost_program_options -lfmt
 
-run-tests: src/run-tests.cc src/errors.cc src/utilities.cc src/ipstream.hh
+build/%.o: src/%.cc src/*.hh build
+	$(Compiler) $(Options) $< -o $@ -c -O3 -lfmt
+
+run-tests: src/run-tests.cc src/errors.hh src/utilities.cc src/ipstream.hh
 	$(Compiler) $(Options) $< -o $@ -O3 -lfmt
 
 # ------------ C++ CODE GENERATION ------------

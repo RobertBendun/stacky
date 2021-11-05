@@ -4,8 +4,7 @@
 #include <string>
 #include <vector>
 
-
-struct Arguments
+extern struct Arguments
 {
 	std::vector<std::filesystem::path>   include_search_paths;
 	std::vector<std::string>             source_files;
@@ -24,4 +23,4 @@ struct Arguments
 	bool dump_words_effects = false;
 
 	void parse(int argc, char **argv);
-};
+} compiler_arguments;

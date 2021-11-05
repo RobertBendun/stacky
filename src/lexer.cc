@@ -1,5 +1,53 @@
+#include <tuple>
+#include <sstream>
+#include "stacky.hh"
+
+using namespace std::string_view_literals;
+
+#include "utilities.cc"
+
+static constexpr auto String_To_Keyword = sorted_array_of_tuples(
+	std::tuple { "&fun"sv,      Keyword_Kind::Function },
+	std::tuple { "--"sv,        Keyword_Kind::Stack_Effect_Divider },
+	std::tuple { "is"sv,        Keyword_Kind::Stack_Effect_Definition },
+	std::tuple { "[]byte"sv,    Keyword_Kind::Array },
+	std::tuple { "[]u16"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u32"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u64"sv,     Keyword_Kind::Array },
+	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
+	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
+	std::tuple { "bool"sv,      Keyword_Kind::Typename },
+	std::tuple { "constant"sv,  Keyword_Kind::Constant },
+	std::tuple { "do"sv,        Keyword_Kind::Do },
+	std::tuple { "else"sv,      Keyword_Kind::Else },
+	std::tuple { "end"sv,       Keyword_Kind::End },
+	std::tuple { "false"sv,     Keyword_Kind::Bool },
+	std::tuple { "fun"sv,       Keyword_Kind::Function },
+	std::tuple { "i16"sv,       Keyword_Kind::Typename },
+	std::tuple { "i32"sv,       Keyword_Kind::Typename },
+	std::tuple { "i64"sv,       Keyword_Kind::Typename },
+	std::tuple { "i8"sv,        Keyword_Kind::Typename },
+	std::tuple { "if"sv,        Keyword_Kind::If },
+	std::tuple { "import"sv,    Keyword_Kind::Import },
+	std::tuple { "include"sv,   Keyword_Kind::Include },
+	std::tuple { "ptr"sv,       Keyword_Kind::Typename },
+	std::tuple { "return"sv,    Keyword_Kind::Return },
+	std::tuple { "true"sv,      Keyword_Kind::Bool },
+	std::tuple { "u16"sv,       Keyword_Kind::Typename },
+	std::tuple { "u32"sv,       Keyword_Kind::Typename },
+	std::tuple { "u64"sv,       Keyword_Kind::Typename },
+	std::tuple { "u64"sv,       Keyword_Kind::Typename },
+	std::tuple { "u8"sv,        Keyword_Kind::Typename },
+	std::tuple { "while"sv,     Keyword_Kind::While }
+);
+
+// This value represents number of keywords inside enumeration
+// Since one keyword kind may represents several symbols,
+// we relay on number of kinds defined
+static_assert(int(Keyword_Kind::Last)+1 == 15, "Exhaustive definition of keywords lookup");
+
 template<unsigned Base>
-auto parse_int(Token &token) -> bool
+static auto parse_int(Token &token) -> bool
 {
 	constexpr auto Max_Digits = max_digits64(Base);
 	auto s = std::string_view(token.sval);
@@ -53,7 +101,7 @@ auto parse_int(Token &token) -> bool
 	return true;
 }
 
-auto lex(std::string_view const file, std::string_view const path, std::vector<Token> &tokens)
+bool lex(std::string_view const file, std::string_view const path, std::vector<Token> &tokens)
 {
 	unsigned column = 1, line = 1;
 
@@ -89,7 +137,7 @@ auto lex(std::string_view const file, std::string_view const path, std::vector<T
 		if (i == file.size())
 			break;
 
-		auto &token = tokens.emplace_back(Location{path, column, line});
+		auto &token = tokens.emplace_back(Token::Location{path, column, line});
 
 		if (ch == '"' || ch == '\'') {
 			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;

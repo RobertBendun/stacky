@@ -1,3 +1,6 @@
+#include <string>
+#include <cstdint>
+
 namespace utf8
 {
 	enum : uint32_t
@@ -18,9 +21,10 @@ namespace utf8
 		Maskx = 0b00111111,
 	};
 
+	// TODO think about better alternative
 	auto encode_rune(uint32_t r) -> std::string
 	{
-		if (r < Rune_Max_1) return {{ char(r) }};
+		if (r < Rune_Max_1) return std::string(1, r);
 		else if (r < Rune_Max_2) return {{
 			char(T2 | char(r >> 6)),
 			char(Tx | char(r) & Maskx)

@@ -1,3 +1,7 @@
+#include "stacky.hh"
+
+#include "utilities.cc"
+
 namespace optimizer
 {
 	auto for_all_functions(Generation_Info &geninfo, auto &&iteration)

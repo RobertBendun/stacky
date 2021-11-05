@@ -2,15 +2,14 @@
 #include <iostream>
 #include <iomanip>
 
-#include <fmt/core.h>
-#include <fmt/format.h>
 #include <boost/program_options.hpp>
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
-using namespace fmt::literals;
 
-#include "errors.cc"
+#include "errors.hh"
+
+Arguments compiler_arguments;
 
 [[noreturn]]
 void help(po::options_description const& desc)

@@ -1,3 +1,5 @@
+#include "stacky.hh"
+
 Type Type::from(Token const& token)
 {
 	assert(token.kind == Token::Kind::Keyword && token.kval == Keyword_Kind::Typename);

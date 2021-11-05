@@ -1,3 +1,7 @@
+#include "stacky.hh"
+
+#include <fstream>
+
 #define Impl_Math(Op_Kind, Name, Implementation) \
 	case Intrinsic_Kind::Op_Kind: \
 		asm_file << "	;;" Name "\n"; \
@@ -316,7 +320,7 @@ namespace linux::x86_64 {
 		asm_file << instr_prefix << ops.size() << ":";
 	}
 
-	auto generate_assembly(Generation_Info &geninfo, fs::path const& asm_path)
+	void generate_assembly(Generation_Info &geninfo, fs::path const& asm_path)
 	{
 		std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 		if (!asm_file) {

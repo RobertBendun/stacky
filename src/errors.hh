@@ -1,4 +1,9 @@
+#pragma once
+
 #include <source_location>
+#include <fmt/core.h>
+#include <fmt/format.h>
+using namespace fmt::literals;
 
 template<typename Location>
 concept Locationable = requires (Location const& loc) {

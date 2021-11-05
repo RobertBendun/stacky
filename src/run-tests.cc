@@ -10,11 +10,10 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "errors.cc"
+#include "errors.hh"
 #include "ipstream.hh"
 #include "utilities.cc"
 
-using namespace fmt::literals;
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 namespace rc = std::regex_constants;

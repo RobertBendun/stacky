@@ -1,3 +1,6 @@
+#include "stacky.hh"
+#include <fstream>
+
 #define Node_Prefix "Stacky_instr_"
 
 void generate_control_flow_graph(Generation_Info const& geninfo, fs::path dot_path, std::string const& function)

@@ -1,3 +1,9 @@
+#include <charconv>
+#include <stack>
+
+#include "stacky.hh"
+#include "utilities.cc"
+
 namespace parser
 {
 	inline auto parse_stringlike(Token const& token, std::string_view sequence, auto&& accumulator)
@@ -61,7 +67,7 @@ namespace parser
 		}
 	}
 
-	auto extract_strings(std::vector<Token> &tokens, std::unordered_map<std::string, unsigned> &strings)
+	void extract_strings(std::vector<Token> &tokens, std::unordered_map<std::string, unsigned> &strings)
 	{
 		static unsigned next_string_id = 0;
 
@@ -107,7 +113,7 @@ namespace parser
 		return std::nullopt;
 	}
 
-	auto register_definitions(std::vector<Token>& tokens, Words &words)
+	void register_definitions(std::vector<Token>& tokens, Words &words)
 	{
 		auto const check_if_has_been_defined = [&](auto const& token, auto const& name) {
 			if (compiler_arguments.warn_redefinitions && words.contains(name)) {
@@ -384,9 +390,7 @@ namespace parser
 				case Keyword_Kind::Stack_Effect_Definition:
 				case Keyword_Kind::Stack_Effect_Divider:
 					unreachable(
-						"`translate_operation` only resolves simple operations (Not {}). This should be handled by either funciton or global parser"_format(
-							Location_Keyword_Kind_Names[(int)token.kval]
-						));
+						"`translate_operation` only resolves simple operations. This should be handled by either funciton or global parser");
 					break;
 				case Keyword_Kind::Import:
 				case Keyword_Kind::Include:
