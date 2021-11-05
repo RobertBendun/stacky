@@ -41,6 +41,7 @@ try {
 
 	po::options_description debug("Debugging");
 	debug.add_options()
+		("dump-effects", "dump all defined words types")
 		("control-flow", "generate control flow graph of a program")
 		("control-flow-for", po::value<std::string>()->value_name("<function>"), "generate control flow graph of a function")
 	;
@@ -106,6 +107,7 @@ try {
 
 	verbose   = vm.count("verbose");
 	typecheck = vm.count("check");
+	dump_words_effects = vm.count("dump-effects");
 
 	if (control_flow_graph = vm.count("control-flow")) {
 		control_flow = executable;

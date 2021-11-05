@@ -6,7 +6,7 @@ timespec.tv_nsec          8   constant
 sizeof(timespec.tv_sec)   8   constant
 sizeof(timespec.tv_nsec)  8   constant
 
-now fun # -- seconds
+now fun u64 is
 	0 SYS_time syscall1
 end
 
@@ -29,7 +29,7 @@ era 8 []byte
 
 # Translated to Stacky from
 # http://howardhinnant.github.io/date_algorithms.html
-date fun # seconds -- year month day hours minutes
+date fun u64 -- u64 u64 u64 u64 u64 is
 	60 div                 # drop seconds
 	dup 60 mod swap 60 div # get minutes
 	dup 24 mod swap 24 div # get hours
@@ -59,7 +59,7 @@ date fun # seconds -- year month day hours minutes
 
 	# m
 	dup 10 < if 3 + else 9 - end
-	rot swap dup 2 <= + swap
+	rot swap dup 2 <= u64 + swap
 end
 
 +minutes fun 60  * + end

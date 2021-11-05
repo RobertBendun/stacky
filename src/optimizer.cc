@@ -140,7 +140,7 @@ namespace optimizer
 				}
 				break;
 			default:
-				assert_msg(false, "unreachable");
+				unreachable("We check earlier for possible values");
 			}
 
 			branch_op -= 1;

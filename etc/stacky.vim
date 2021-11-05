@@ -18,7 +18,7 @@ syn keyword stackyType bool ptr
 syn keyword stackyType i8 i16 i32 i64
 syn keyword stackyType u8 u16 u32 u64
 
-syn keyword stackyDefinitions constant fun &fun
+syn keyword stackyDefinitions constant fun &fun is --
 syn match stackyDefinitions '\[\]byte'
 syn match stackyDefinitions '\[\]u8'
 syn match stackyDefinitions '\[\]u16'

@@ -25,10 +25,8 @@ auto parse_int(Token &token) -> bool
 			return false;
 		}
 		token.byte_size = 1;
-		token.is_unsigned = s[s.size() - 2] == 'u';
 		s.remove_suffix(2);
 	} else if (s.size() >= 3 && (s[s.size() - 3] == 'i' || s[s.size() - 3] == 'u')) {
-		token.is_unsigned = s[s.size() - 3] == 'u';
 		if (s.ends_with("16")) token.byte_size = 2; else
 		if (s.ends_with("32")) token.byte_size = 4; else
 		if (s.ends_with("64")) token.byte_size = 8; else return false;

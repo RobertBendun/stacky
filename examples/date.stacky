@@ -1,0 +1,12 @@
+"io"   import
+"time" import
+
+"Date is " print
+
+now # returns seconds in Unix time
+date # returns year, month, day, hours, minutes
+	   print-int "-" print
+	2 aprint-int "-" print
+	2 aprint-int " " print
+	2 aprint-int ":" print
+	2 aprint-int

@@ -1,12 +1,12 @@
 "algorithm" import
 "io" import
 
-begin-end-32 fun
+begin-end-32 fun u64 ptr -- ptr ptr is
 	dup rot 4 * + swap
 end
 
 # max min n p
-fill-with-random fun
+fill-with-random fun u64 u64 u64 ptr -- is
 	begin-end-32
 	while 2dup != do
 		2over uniform32 over swap store32
@@ -17,7 +17,7 @@ fill-with-random fun
 end
 
 # length pointer
-sort fun
+sort fun u64 ptr -- is
 	begin-end-32
 	while 2dup 4 + != do
 		2dup 4 +
