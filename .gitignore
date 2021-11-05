@@ -15,3 +15,4 @@ enum-names.cc
 *.zig
 *.asm
 *.out
+*.ccls-cache

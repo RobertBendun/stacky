@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "/home/robert/dev/stacky",
+    "file": "src/arguments.cc",
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/arguments.cc -o build/arguments.o -c -O3 -lboost_program_options -lfmt"
+  },
+  {
+    "directory": "/home/robert/dev/stacky",
+    "file": "src/stacky.cc",
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/stacky.cc -o stacky -O3 -lboost_program_options -lfmt build/arguments.o"
+  }
+]
