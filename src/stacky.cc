@@ -1071,8 +1071,15 @@ auto main(int argc, char **argv) -> int
 	}
 
 	if (compiler_arguments.typecheck) {
-		for (auto const& [_, word] : geninfo.words) {
-			if (!word.has_effect) continue;
+		for (auto const& [name, word] : geninfo.words) {
+			if (word.kind != Word::Kind::Function)
+				continue;
+
+			if (!word.has_effect) {
+				warning("function `{}` without type signature"_format(name));
+				continue;
+			}
+
 			typecheck(word);
 		}
 		typecheck(geninfo.main);
