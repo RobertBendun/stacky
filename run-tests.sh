@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 Compiler="./stacky"
-Verbose_Mode=""
 
 Test_Count=0
 Passed=0
@@ -12,61 +11,34 @@ usage() {
 	echo "    subcommand = "
 	echo "      all    - run all tests"
 	echo "      one-of - run tests specified in files"
+	echo "      record - record given test cases"
 	echo
 	echo "    options = "
-	echo "      -v, --verbose - always print CMD messages and summary"
 	echo "      -h, --help    - print this message"
 	exit 1
-}
-
-cmd() {
-	[ "$Verbose_Mode" ] && echo "### CMD:" $@
-	$@
-	Exit_Code="$?"
-	[ "$Exit_Code" -ne 0 ] && {
-		error "Command exited with non-zero exit code: $Exit_Code"
-		exit 1
-	}
-}
-
-warning() {
-	echo "### WARNING:" $@
-}
-
-error() {
-	echo "### ERROR:" $@
-}
-
-compile() {
-	[ -f "$Compiler" ] || {
-		error "Cannot find compiler at '$Compiler'"
-		exit 1
-	}
-	cmd "$Compiler" build "$1"
-}
-
-compare() {
-	cmp <($1) "$2"
-	if [ "$?" -ne 0 ]; then
-		error "Output of '$3' does not match expected"
-	else
-		let ++Passed
-	fi
 }
 
 test_file() {
 	Stacky_File="$1"
 	Executable="${Stacky_File%%.stacky}"
-	Output_File="$Executable.txt"
+	Stdout="$Executable.stdout"
+	Stderr="$Executable.stderr"
 
-	[ -f "$Output_File" ] || {
-		warning "file '$Stacky_File' does NOT have matching output file"
-		return
-	}
-
-	compile "$Stacky_File"
 	let ++Test_Count
-	compare "$Executable" "$Output_File" "$Stacky_File"
+
+	"$Compiler" run "$Stacky_File" > .stdout 2> .stderr
+
+	Test_Passed=1
+
+	if ! diff -p -N "$Stdout" .stdout; then
+		Test_Passed=0
+	fi
+
+	if ! diff -N "$Stderr" .stderr; then
+		Test_Passed=0
+	fi
+
+	let Passed+="$Test_Passed"
 }
 
 test_directory() {
@@ -75,15 +47,35 @@ test_directory() {
 	done
 }
 
+record_file() {
+	Stacky_File="$1"
+	Executable="${Stacky_File%%.stacky}"
+	Stdout="$Executable.stdout"
+	Stderr="$Executable.stderr"
+
+	compile "$Stacky_File"
+	echo "### Recording " "$Stacky_File"
+	"$Executable" > "$Stdout" 2>"$Stderr"
+
+	[ -s "$Stdout" ] || rm "$Stdout"
+	[ -s "$Stderr" ] || rm "$Stderr"
+}
+
+record_directory() {
+	for Stacky_File in "$1"/*.stacky; do
+		record_file "$Stacky_File"
+	done
+}
+
 Tests=()
 Accept_Tests=""
+Mode="test"
 
 for arg in "$@"; do
 	case "$arg" in
 		all)     Tests+=("tests") ;;
 		one-of)  Accept_Tests=1   ;;
-		-v)      Verbose_Mode=1   ;;
-		--verbose) Verbose_Mode=1 ;;
+		record)  Mode="record"    ;;
 		-h)      usage            ;;
 		--help)  usage            ;;
 		*)
@@ -100,11 +92,15 @@ if [ "${#Tests[@]}" -eq 0 ]; then
 else
 	for Test_Case in "${Tests[@]}"; do
 		if [ -d "$Test_Case" ]; then
-			test_directory "$Test_Case"
+			"$Mode"_directory "$Test_Case"
 		else
-			test_file "$Test_Case"
+			"$Mode"_file "$Test_Case"
 		fi
 	done
+fi
+
+if [ "$Mode" = "record" ]; then
+	exit
 fi
 
 [ "$Verbose_Mode" -o "$Test_Count" -ne "$Passed" ] && {
