@@ -16,3 +16,5 @@ enum-names.cc
 *.asm
 *.out
 *.ccls-cache
+.stderr
+.stdout
