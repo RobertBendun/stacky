@@ -13,30 +13,24 @@ Objects=build/arguments.o \
 				build/debug.o \
 				build/types.o
 
-.PHONY:
+.PHONY: all
 all: stacky test $(Compiled_Examples)
 
 # ------------ COMPILER COMPILATION ------------
 
 build:
-	mkdir build -p
+	mkdir -p build
 
-stacky: src/stacky.cc $(Objects) src/enum-names.cc
+stacky: src/stacky.cc $(Objects) src/stacky.hh src/errors.hh src/enum-names.cc
 	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt $(Objects)
 
-build/arguments.o: src/arguments.cc src/*.hh src/arguments.hh build
-	$(Compiler) $(Options) $< -o $@ -c -O3 -lboost_program_options -lfmt
-
-build/%.o: src/%.cc src/*.hh build
-	$(Compiler) $(Options) $< -o $@ -c -O3 -lfmt
-
-run-tests: src/run-tests.cc src/errors.hh src/utilities.cc src/ipstream.hh
-	$(Compiler) $(Options) $< -o $@ -O3 -lfmt
+build/%.o: src/%.cc src/stacky.hh src/errors.hh | build
+	$(Compiler) $(Options) $< -o $@ -c -O3
 
 # ------------ C++ CODE GENERATION ------------
 
-src/enum-names.cc: enum2string.sh src/stacky.cc
-	./enum2string.sh src/stacky.cc > $@
+src/enum-names.cc: enum2string.sh src/stacky.hh
+	./enum2string.sh src/stacky.hh > $@
 
 # ------------ STACKY COMPILATION ------------
 
@@ -44,8 +38,8 @@ examples/%: examples/%.stacky stacky
 	./stacky build $<
 
 .PHONY: test
-test: run-tests stacky
-	./$<
+test: run-tests.sh stacky
+	./$< all
 
 # ------------ UTILITIES ------------
 
