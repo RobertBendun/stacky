@@ -1,0 +1,24 @@
+"io" import
+
+Sentence-Count 1024           constant
+Sentence       Sentence-Count []byte
+
+Sentence-Count Sentence stdin SYS_read syscall3
+dup 0 = over Sentence-Count > or if 1 exit end
+
+0 while 2dup > do
+	dup Sentence + dup load8
+	dup 'a' >= over 'z' <= and if
+		'a' - 13 + 26 mod 'a' + store8
+	else
+		dup 'A' >= over 'Z' <= and if
+			'A' - 13 + 26 mod 'A' + store8
+		else
+			2drop
+		end
+	end
+
+	1 +
+end drop
+
+Sentence stdout SYS_write syscall3 drop
