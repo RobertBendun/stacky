@@ -1,0 +1,26 @@
+# defined at https://esolangs.org/wiki/Truth-machine
+"io"    import
+"posix" import
+
+print-byte fun u64 -- is
+	top 1 swap stdout SYS_write syscall3 2drop
+end
+
+Input 1 []byte
+
+1 Input stdin SYS_read syscall3 1 != if
+	"Expected 0 or 1" println
+	1 exit
+end
+
+Input load8
+dup '0' != over '1' != and if
+	"Expected 0 or 1" println
+	1 exit
+end
+
+dup print-byte nl
+
+while dup '0' != do
+	dup print-byte nl
+end drop
