@@ -12,7 +12,11 @@ In mostly random order:
 - [ ] Static type system (currently beeing developed)
 - [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky or use [Multiboot](https://www.gnu.org/software/grub/manual/multiboot/multiboot.html) standard)
 - [ ] (Limited) Compile time code execution
-- [ ] Multiplatform (at least supporting Linux ARM and x86\_64, maybe WebAssembly)
+- [ ] Multiplatform (in probability of implementing order from higher to lower)
+	- [x] Linux x86-64
+	- [ ] Linux ARM
+	- [ ] Linux LLVM
+	- [ ] WebAssembly
 - [ ] Ability to interact with C code (but not depending on it) (WIP for signals support)
 
 with some basic optimizations and good error reporting.
