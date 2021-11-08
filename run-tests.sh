@@ -2,6 +2,11 @@
 
 Compiler="./stacky"
 
+if [ ! -f "$Compiler" ]; then
+	echo "Missing compiler '$Compiler'"
+	exit 1
+fi
+
 Test_Count=0
 Passed=0
 
@@ -53,7 +58,7 @@ record_file() {
 	Stdout="$Executable.stdout"
 	Stderr="$Executable.stderr"
 
-	compile "$Stacky_File"
+	"$Compiler" build "$Stacky_File"
 	echo "### Recording " "$Stacky_File"
 	"$Executable" > "$Stdout" 2>"$Stderr"
 
