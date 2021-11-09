@@ -135,31 +135,26 @@ struct Type
 		Int,
 		Bool,
 		Pointer,
+		Any,
+
+		Count = Any
 	};
 
 	auto& operator=(Type::Kind k) { kind = k; return *this; }
 
 	auto operator==(Type const& other) const
 	{
-		return kind == other.kind;
+		return (kind == Kind::Any || other.kind == Kind::Any) || kind == other.kind;
 	}
 
 	auto operator!=(Type const& other) const { return !this->operator==(other); }
 
-	auto with_op(struct Operation const* op) const
-	{
-		auto copy = *this;
-		copy.op = op;
-		return copy;
-	}
-
 	Kind kind;
-	struct Operation const* op = nullptr;
-
 	static Type from(Token const& token);
 };
 
 using Typestack = std::vector<Type>;
+using Typestack_View = std::span<Type const>;
 
 struct Stack_Effect
 {
@@ -168,12 +163,7 @@ struct Stack_Effect
 
 	inline auto& operator[](bool is_input) { return is_input ? input : output; }
 
-	auto string() const -> std::string
-	{
-		return "";
-		// TODO make code below compile
-		// return "{} -- {}"_format(fmt::join(input, " "), fmt::join(output, " "));
-	}
+	auto string() const -> std::string;
 };
 
 struct Operation
