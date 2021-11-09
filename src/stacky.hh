@@ -136,13 +136,27 @@ struct Type
 		Bool,
 		Pointer,
 		Any,
+		Variable,
 
-		Count = Any
+		Count = Variable
 	};
 
 	auto& operator=(Type::Kind k) { kind = k; return *this; }
 
-	auto operator==(Type const& other) const
+	auto compare_in_context(Type const& other, auto const& ctx) const -> bool
+	{
+		if (kind == Kind::Variable) {
+			if (other.kind == Kind::Variable)
+				return var == other.var || ctx[var] == ctx[other.var];
+			return ctx[var] == other;
+		} else if (other.kind == Kind::Variable) {
+			return other.compare_in_context(*this, ctx);
+		}
+
+		return *this == other;
+	}
+
+	auto operator==(Type const& other) const -> bool
 	{
 		return (kind == Kind::Any || other.kind == Kind::Any) || kind == other.kind;
 	}
@@ -150,6 +164,7 @@ struct Type
 	auto operator!=(Type const& other) const { return !this->operator==(other); }
 
 	Kind kind;
+	unsigned var = -1;
 	static Type from(Token const& token);
 };
 

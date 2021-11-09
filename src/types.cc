@@ -1,6 +1,8 @@
 #include "stacky.hh"
 #include <algorithm>
 #include <numeric>
+#include <concepts>
+#include <ranges>
 
 Type Type::from(Token const& token)
 {
@@ -21,6 +23,7 @@ auto type_name(Type const& type) -> std::string
 	case Type::Kind::Pointer: return "ptr";
 	case Type::Kind::Int: return "u64";
 	case Type::Kind::Any: return "any";
+	case Type::Kind::Variable: return "$" + std::to_string(type.var);
 	}
 	unreachable("we don't have more type kinds");
 }
@@ -86,8 +89,25 @@ void verify_output(State const& s)
 	unreachable("unimplemented");
 }
 
+template<typename Eff>
+concept Effect = requires (Eff effect)
+{
+	{ effect.input } -> std::ranges::random_access_range;
+	{ effect.output } -> std::ranges::random_access_range;
 
-void typecheck_stack_effects(State& state, auto const& effects)
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.input)>, Type>;
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.output)>, Type>;
+};
+
+template<typename Effs>
+concept Effects = requires (Effs effects, unsigned i)
+{
+	{ effects[i] } -> Effect;
+	{ effects.size() } -> std::convertible_to<unsigned>;
+};
+
+
+void typecheck_stack_effects(State& state, Effects auto const& effects)
 {
 	struct Error
 	{
@@ -102,18 +122,34 @@ void typecheck_stack_effects(State& state, auto const& effects)
 	std::vector<Error> deffered_errors;
 
 	for (unsigned effect_id = 0; effect_id < effects.size(); ++effect_id) {
-		auto const& effect = effects[effect_id];
+		Effect auto const& effect = effects[effect_id];
+		std::unordered_map<decltype(Type::var), Type> generics;
+
+		auto const compare = [&](Type const& stack, Type const& effect) {
+			if (effect.kind == Type::Kind::Variable) {
+				if (generics.contains(effect.var))
+					return generics.at(effect.var) == stack;
+				generics.insert({ effect.var, stack });
+				return true;
+			}
+			return stack == effect;
+		};
 
 		auto const send = state.stack.rend();
 		auto const ebeg = effect.input.rbegin();
 		auto const eend = effect.input.rend();
-		auto [s, e] = std::mismatch(state.stack.rbegin(), send, ebeg, eend);
+		auto [s, e] = std::mismatch(state.stack.rbegin(), send, ebeg, eend, compare);
 
 		auto match = std::distance(ebeg, e);
 
 		if (e == eend) {
 			state.stack.erase((state.stack.rbegin() + effect.input.size()).base(), state.stack.end());
-			state.stack.insert(state.stack.end(), effect.output.begin(), effect.output.end());
+			std::transform(effect.output.begin(), effect.output.end(), std::back_inserter(state.stack), [&](Type const& type) {
+				if (type.kind != Type::Kind::Variable)
+					return type;
+				ensure_fatal(generics.contains(type.var), "Couldn't deduce type variable");
+				return generics[type.var];
+			});
 			return;
 		}
 
@@ -125,7 +161,7 @@ void typecheck_stack_effects(State& state, auto const& effects)
 		}
 
 		for (; e != eend && s != send; ++s, ++e) {
-			if (*e == *s) { ++match; continue; }
+			if (compare(*e, *s)) { ++match; continue; }
 			deffered_errors.push_back({ effect_id, Error::Different_Types, *e, *s });
 		}
 
@@ -174,7 +210,17 @@ namespace Type_DSL
 	Alias(Int,   Int);
 	Alias(Ptr,   Pointer);
 #undef Alias
-	static_assert(4 == (int)Type::Kind::Count+1, "All types are handled in Type_DSL");
+	static_assert(5 == (int)Type::Kind::Count+1, "All types are handled in Type_DSL");
+
+	static constexpr auto _1 = std::array<Type, 1>{ Type { Type::Kind::Variable, 1 } };
+	static constexpr auto _2 = std::array<Type, 1>{ Type { Type::Kind::Variable, 2 } };
+	static constexpr auto _3 = std::array<Type, 1>{ Type { Type::Kind::Variable, 3 } };
+	static constexpr auto _4 = std::array<Type, 1>{ Type { Type::Kind::Variable, 4 } };
+	static constexpr auto _5 = std::array<Type, 1>{ Type { Type::Kind::Variable, 5 } };
+	static constexpr auto _6 = std::array<Type, 1>{ Type { Type::Kind::Variable, 6 } };
+	static constexpr auto _7 = std::array<Type, 1>{ Type { Type::Kind::Variable, 7 } };
+	static constexpr auto _8 = std::array<Type, 1>{ Type { Type::Kind::Variable, 8 } };
+	static constexpr auto _9 = std::array<Type, 1>{ Type { Type::Kind::Variable, 9 } };
 
 	template<auto N, auto M>
 	constexpr auto operator>>(std::array<Type, N> const& lhs, std::array<Type, M> const& rhs)
@@ -204,7 +250,6 @@ namespace Type_DSL
 	constexpr auto view(auto const& effects)
 	{
 		auto const convert = [&](auto const& ...effects) {
-
 			return std::array {
 				Stack_Effect_View {
 					effects.input,
@@ -212,8 +257,6 @@ namespace Type_DSL
 				} ...
 			};
 		};
-
-
 		return std::apply(convert, effects);
 	}
 }
@@ -267,6 +310,10 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&initial_typestack,
 					Typecheck_Stack_Effect(s, Any >= Empty);
 					break;
 
+				case Intrinsic_Kind::Two_Drop:
+					Typecheck_Stack_Effect(s, Any >> Any >= Empty);
+					break;
+
 				case Intrinsic_Kind::Add:
 					Typecheck_Stack_Effect(s, Ptr >> Int >= Ptr, Int >> Ptr >= Ptr, Int >> Int >= Int);
 					break;
@@ -284,13 +331,98 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&initial_typestack,
 					Typecheck_Stack_Effect(s, Ptr >> Ptr >= Bool, Int >> Int >= Bool, Bool >> Bool >= Bool);
 					break;
 
+				case Intrinsic_Kind::Boolean_Negate:
+					Typecheck_Stack_Effect(s, Bool >= Bool);
+					break;
+
 				case Intrinsic_Kind::Boolean_And:
 				case Intrinsic_Kind::Boolean_Or:
 					Typecheck_Stack_Effect(s, Bool >> Bool >= Bool);
 					break;
 
-				default:
-					unreachable("unimplemented");
+				case Intrinsic_Kind::Bitwise_And:
+				case Intrinsic_Kind::Bitwise_Or:
+				case Intrinsic_Kind::Bitwise_Xor:
+				case Intrinsic_Kind::Left_Shift:
+				case Intrinsic_Kind::Right_Shift:
+				case Intrinsic_Kind::Mul:
+				case Intrinsic_Kind::Div:
+				case Intrinsic_Kind::Mod:
+				case Intrinsic_Kind::Min:
+				case Intrinsic_Kind::Max:
+					Typecheck_Stack_Effect(s, Int >> Int >= Int);
+					break;
+
+				case Intrinsic_Kind::Div_Mod:
+					Typecheck_Stack_Effect(s, Int >> Int >= Int >> Int);
+					break;
+
+				case Intrinsic_Kind::Dup:
+					Typecheck_Stack_Effect(s, _1 >= _1 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Dup:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _1 >> _2 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Over:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _1 >> _2 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Over:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >> _4 >= _1 >> _2 >> _3 >> _4 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Swap:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _2 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Swap:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >> _4 >= _3 >> _4 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Tuck:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _2 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Rot:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >= _3 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Random32:
+				case Intrinsic_Kind::Random64:
+					Typecheck_Stack_Effect(s, Empty >= Int);
+					break;
+
+				case Intrinsic_Kind::Load:
+					Typecheck_Stack_Effect(s, Ptr >> Int >= Empty);
+					break;
+
+				case Intrinsic_Kind::Store:
+					Typecheck_Stack_Effect(s, Ptr >> Int >= Empty);
+					break;
+
+				case Intrinsic_Kind::Top:
+					Typecheck_Stack_Effect(s, _1 >= _1 >> Ptr);
+					break;
+
+				case Intrinsic_Kind::Syscall:
+					{
+						assert(op.token.sval.size() == 8 && op.token.sval[7] >= '0' && op.token.sval[7] <= '6');
+						unsigned const syscall_count = op.token.sval[7] - '0';
+
+						Stack_Effect effect;
+						std::generate_n(std::back_inserter(effect.input), syscall_count, [i = 1u]() mutable {
+								return Type { Type::Kind::Variable, i++ };
+						});
+						effect.input.push_back({ Type::Kind::Int }); // sycall number
+						effect.output.push_back({ Type::Kind::Int });
+					}
+					break;
+
+				case Intrinsic_Kind::Call:
+					assert_msg(false, "unimplemented: Requires support for storing stack effects in types");
+					break;
 				}
 			}
 			break;
