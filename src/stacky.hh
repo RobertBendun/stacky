@@ -279,8 +279,8 @@ namespace parser
 }
 
 // Type checking
-void typecheck(std::vector<Operation> const& ops);
-void typecheck(Word const& word);
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops);
+void typecheck(Generation_Info &geninfo, Word const& word);
 
 // Optimization
 namespace optimizer

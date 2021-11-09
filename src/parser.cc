@@ -459,7 +459,7 @@ trivial:
 							unreachable("unimplemented: Type variables");
 						}
 						if (token.kind != Token::Kind::Keyword) {
-							error(token, "Type specification only allows integers or type names");
+							error_fatal(token, "Type specification only allows integers or type names");
 							break;
 						}
 

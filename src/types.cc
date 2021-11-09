@@ -11,6 +11,7 @@ Type Type::from(Token const& token)
 	case 'b': return { Type::Kind::Bool };
 	case 'p': return { Type::Kind::Pointer };
 	case 'u': return { Type::Kind::Int };
+	case 'a': return { Type::Kind::Any };
 	}
 
 	unreachable("unparsable type definition (bug in lexer probably)");
@@ -36,7 +37,6 @@ template <> struct fmt::formatter<Type> : fmt::formatter<std::string> {
   }
 };
 
-
 auto stack_effect_string(auto const& stack_effect)
 {
 	return "{} -- {}"_format(fmt::join(stack_effect.input, " "), fmt::join(stack_effect.output, " "));
@@ -48,18 +48,17 @@ auto Stack_Effect::string() const -> std::string
 }
 
 
-void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
 
-void typecheck(Word const& word)
+void typecheck(Generation_Info &geninfo, Word const& word)
 {
 	auto copy = word.effect.input;
-
-	typecheck(word.function_body, std::move(copy), word.effect.output);
+	typecheck(geninfo, word.function_body, std::move(copy), word.effect.output);
 }
 
-void typecheck(std::vector<Operation> const& ops)
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops)
 {
-	typecheck(ops, {}, {});
+	typecheck(geninfo, ops, {}, {});
 }
 
 struct State
@@ -268,7 +267,7 @@ namespace Type_DSL
 		++s.ip; \
 	} while(0)
 
-void typecheck(std::vector<Operation> const& ops, Typestack &&initial_typestack, Typestack const& expected)
+void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&initial_typestack, Typestack const& expected)
 {
 	using namespace Type_DSL;
 
@@ -278,6 +277,8 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&initial_typestack,
 		auto& s = states.back();
 
 		if (s.ip >= ops.size()) {
+		// It's the same for `return` operation and end of ops
+		ops_end:
 			verify_output(s);
 			states.pop_back();
 			continue;
@@ -302,6 +303,34 @@ void typecheck(std::vector<Operation> const& ops, Typestack &&initial_typestack,
 				++s.ip;
 			}
 			break;
+
+		case Operation::Kind::If:
+			{
+				Typecheck_Stack_Effect(s, Bool >= Empty);
+				assert(op.jump != Operation::Empty_Jump);
+				states.push_back(State { s.stack, s.output, op.jump });
+			}
+			break;
+
+		case Operation::Kind::Else:
+			assert(op.jump != Operation::Empty_Jump);
+			s.ip = op.jump;
+			break;
+
+		case Operation::Kind::End:
+			assert(op.jump != Operation::Empty_Jump);
+			s.ip = op.jump;
+			break;
+
+		case Operation::Kind::Call_Symbol:
+			assert(op.word);
+			ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
+			typecheck_stack_effects(s, std::array { op.word->effect });
+			++s.ip;
+			break;
+
+		case Operation::Kind::Return:
+			goto ops_end;
 
 		case Operation::Kind::Intrinsic:
 			{
