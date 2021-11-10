@@ -172,7 +172,7 @@ void typecheck_stack_effects(State& state, Effects auto const& effects)
 	}
 
 
-	auto best_match_score = *std::max_element(matching.begin(), matching.end());
+	auto const best_match_score = *std::max_element(matching.begin(), matching.end());
 
 	// TODO operation name
 	error("Invalid stack state of operation");
@@ -271,6 +271,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 {
 	using namespace Type_DSL;
 
+	std::unordered_map<decltype(State::ip), State> visited_do_ops;
 	std::vector<State> states = { State { std::move(initial_typestack), std::span(expected), 0 } };
 
 	while (!states.empty()) {
@@ -320,6 +321,30 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 		case Operation::Kind::End:
 			assert(op.jump != Operation::Empty_Jump);
 			s.ip = op.jump;
+			break;
+
+		case Operation::Kind::While:
+			++s.ip;
+			break;
+
+		case Operation::Kind::Do:
+			Typecheck_Stack_Effect(s, Bool >= Empty);
+
+			if (visited_do_ops.contains(s.ip - 1)) {
+				auto const& expected = visited_do_ops[s.ip-1];
+
+				auto [stk, exp] = std::mismatch(s.stack.begin(), s.stack.end(), expected.stack.begin(), expected.stack.end());
+				if (stk != s.stack.end() || exp != expected.stack.end()) {
+					error_fatal("Loop differs stack");
+				}
+
+				states.pop_back();
+			} else {
+				visited_do_ops.insert({ s.ip - 1, s });
+				states.push_back(s);
+				assert(op.jump != Operation::Empty_Jump);
+				states.back().ip = op.jump;
+			}
 			break;
 
 		case Operation::Kind::Call_Symbol:
@@ -455,9 +480,10 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 				}
 			}
 			break;
-
+#if 0
 		default:
 			unreachable("unimplemented");
+#endif
 		}
 	}
 }
