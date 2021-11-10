@@ -109,8 +109,10 @@ concept Effect = requires (Eff effect)
 template<typename Effs>
 concept Effects = requires (Effs effects, unsigned i)
 {
-	{ effects[i] } -> Effect;
-	{ effects.size() } -> std::convertible_to<unsigned>;
+	{ effects[i] }      -> Effect;
+	{ effects.size() }  -> std::convertible_to<unsigned>;
+	{ effects.begin() } -> std::forward_iterator;
+	{ effects.end() }   -> std::forward_iterator;
 };
 
 
@@ -128,6 +130,14 @@ void typecheck_stack_effects(State& state, Effects auto const& effects, Location
 	matching.reserve(effects.size());
 	std::vector<Error> deffered_errors;
 
+	auto const minumum_number_of_arguments = std::accumulate(effects.begin(), effects.end(), (unsigned long)-1, [](auto p, auto v) {
+		return std::min(p, v.input.size());
+	});
+
+	if (minumum_number_of_arguments != 0 && state.stack.size() < minumum_number_of_arguments) {
+		error_fatal(loc, "`{}` requires miniumum {} argument{} on the stack"_format(operation_name, minumum_number_of_arguments, minumum_number_of_arguments > 1 ? "s" : ""));
+	}
+
 	for (unsigned effect_id = 0; effect_id < effects.size(); ++effect_id) {
 		Effect auto const& effect = effects[effect_id];
 		std::unordered_map<decltype(Type::var), Type> generics;
@@ -142,9 +152,9 @@ void typecheck_stack_effects(State& state, Effects auto const& effects, Location
 			return stack == effect;
 		};
 
-		auto const send = state.stack.rend();
 		auto const ebeg = effect.input.rbegin();
 		auto const eend = effect.input.rend();
+		auto const send = state.stack.rend();
 		auto [s, e] = std::mismatch(state.stack.rbegin(), send, ebeg, eend, compare);
 
 		auto match = std::distance(ebeg, e);
