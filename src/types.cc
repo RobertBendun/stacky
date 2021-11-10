@@ -86,7 +86,8 @@ void verify_output(State const& s)
 		return;
 
 	if (s.output.empty()) {
-		error(s.stack.begin()->location, "Excess data on stack");
+		error(s.stack.back().location, "Excess data on stack");
+		info(s.stack.back().location, "List of all excess data introductions: ");
 		for (auto it = s.stack.rbegin(); it != s.stack.rend(); ++it) {
 			info(it->location, "value of type `{}`"_format(type_name(*it)));
 		}
