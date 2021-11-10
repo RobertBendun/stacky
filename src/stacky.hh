@@ -99,6 +99,21 @@ enum class Intrinsic_Kind
 	Last = Syscall,
 };
 
+struct Location
+{
+	std::string_view file;
+	unsigned column;
+	unsigned line;
+	std::string_view function_name = {};
+
+	inline Location with_function(std::string_view fname) const
+	{
+		auto copy = *this;
+		copy.function_name = fname;
+		return copy;
+	}
+};
+
 struct Token
 {
 	enum class Kind
@@ -109,13 +124,6 @@ struct Token
 		Char,
 		Keyword,
 		Address_Of,
-	};
-
-	struct Location
-	{
-		std::string_view file;
-		unsigned column;
-		unsigned line;
 	};
 
 	Location location;
@@ -141,6 +149,13 @@ struct Type
 		Count = Variable
 	};
 
+	inline Type with_location(Location &&loc) const
+	{
+		auto copy = *this;
+		copy.location = std::move(loc);
+		return copy;
+	}
+
 	auto& operator=(Type::Kind k) { kind = k; return *this; }
 
 	auto compare_in_context(Type const& other, auto const& ctx) const -> bool
@@ -165,6 +180,7 @@ struct Type
 
 	Kind kind;
 	unsigned var = -1;
+	Location location = {};
 	static Type from(Token const& token);
 };
 
@@ -198,6 +214,7 @@ struct Operation
 		Return,
 	};
 
+
 	Kind kind;
 	Token token;
 	uint64_t ival;
@@ -211,6 +228,7 @@ struct Operation
 	std::string_view symbol_prefix;
 
 	Type type;
+	Location location;
 };
 
 struct Word
@@ -238,6 +256,8 @@ struct Word
 
 	bool has_effect = false;
 	Stack_Effect effect;
+	Location location;
+	std::string_view function_name;
 };
 
 using Words = std::unordered_map<std::string, Word>;

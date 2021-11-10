@@ -138,7 +138,7 @@ bool lex(std::string_view const file, std::string_view const path, std::vector<T
 		if (i == file.size())
 			break;
 
-		auto &token = tokens.emplace_back(Token::Location{path, column, line});
+		auto &token = tokens.emplace_back(Location{path, column, line});
 
 		if (ch == '"' || ch == '\'') {
 			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;

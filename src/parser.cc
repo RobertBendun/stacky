@@ -149,6 +149,7 @@ namespace parser
 						auto &word = words[fname];
 						word.kind = Word::Kind::Function;
 						word.id = Word::word_count++;
+						word.location = token.location;
 					} else {
 						ensure(i >= 1 && tokens[i-1].kind == Token::Kind::Word, token, "Function should be preceeded by an identifier");
 						auto const& fname = tokens[i-1].sval;
@@ -156,6 +157,7 @@ namespace parser
 						auto &word = words[fname];
 						word.kind = Word::Kind::Function;
 						word.id = Word::word_count++;
+						word.location = token.location;
 					}
 				}
 				break;
@@ -170,6 +172,7 @@ namespace parser
 					word.kind  = Word::Kind::Integer;
 					word.id    = Word::word_count++;
 					word.ival  = tokens[i-1].ival;
+					word.location = tokens[i-2].location;
 				}
 				break;
 
@@ -208,6 +211,7 @@ namespace parser
 					word.kind      = Word::Kind::Array;
 					word.byte_size = size;
 					word.id        = Word::word_count++;
+					word.location = tokens[i-2].location;
 				}
 				break;
 			}
@@ -293,6 +297,7 @@ namespace parser
 				// TODO this may throw if we are trying to take address of non existing word
 				op.ival = words.at(token.sval.substr(1)).id;
 				op.token = token;
+				op.location = token.location;
 			}
 			break;
 
@@ -304,6 +309,7 @@ namespace parser
 				// TODO investigate what type should char have. Since we support multibyte char literals, maybe it should have
 				// the smallest type containing posibble value?
 				op.type = Type::Kind::Int;
+				op.location = token.location;
 
 				parse_stringlike(token, token.sval.substr(1, token.sval.size() - 2),
 						[&token, value = &op.ival, offset = 0](char c) mutable {
@@ -324,6 +330,7 @@ namespace parser
 				auto &op = body.emplace_back(Operation::Kind::Push_Int);
 				op.ival = token.ival;
 				op.token = token;
+				op.location = token.location;
 			}
 			break;
 
@@ -333,6 +340,7 @@ namespace parser
 				op.symbol_prefix = String_Prefix;
 				op.token = token;
 				op.ival = token.ival;
+				op.location = token.location;
 			}
 			break;
 
@@ -346,6 +354,7 @@ namespace parser
 						auto &op = body.emplace_back(Operation::Kind::Intrinsic);
 						op.intrinsic = word.intrinsic;
 						op.token = token;
+						op.location = token.location;
 					}
 					break;
 				case Word::Kind::Integer:
@@ -355,6 +364,7 @@ namespace parser
 						auto &op = body.emplace_back(Operation::Kind::Push_Int);
 						op.ival = word.ival;
 						op.token = token;
+						op.location = token.location;
 					}
 					break;
 				case Word::Kind::Array:
@@ -364,6 +374,7 @@ namespace parser
 						op.ival = word.id;
 						op.sval = token.sval;
 						op.token = token;
+						op.location = token.location;
 					}
 					break;
 				case Word::Kind::Function:
@@ -374,6 +385,7 @@ namespace parser
 						op.symbol_prefix = Function_Prefix;
 						op.ival = word.id;
 						op.word = &word;
+						op.location = token.location;
 					}
 					break;
 				}
@@ -409,6 +421,7 @@ namespace parser
 						op.ival = token.sval[0] == 't';
 						op.token = token;
 						op.type = Type::Kind::Bool;
+						op.location = token.location;
 					}
 					break;
 				case Keyword_Kind::Typename:
@@ -416,6 +429,7 @@ namespace parser
 						auto &op = body.emplace_back(Operation::Kind::Cast);
 						op.token = token;
 						op.type = Type::from(token);
+						op.location = token.location;
 					}
 					break;
 				}
@@ -548,6 +562,7 @@ trivial:
 		}
 
 		std::reverse(std::begin(body), std::end(body));
+		std::for_each(body.begin(), body.end(), [&func](auto &o) { o.location = o.location.with_function(func.function_name); });
 		crossreference(body);
 	}
 
@@ -605,9 +620,12 @@ trivial:
 						op.ival = word->id;
 						op.token = start_token;
 						i = block_start;
+						// TODO not sure if this should be "anonymous" or empty
+						// word->function_name = "<anonymous>";
 					} else {
 						// TODO is this safe? dunno
 						word = &words.at(tokens[block_start-1].sval);
+						word->function_name = tokens[block_start-1].sval;
 						i = block_start - 1; // remove function name
 					}
 

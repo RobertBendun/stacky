@@ -7,11 +7,13 @@
 Type Type::from(Token const& token)
 {
 	assert(token.kind == Token::Kind::Keyword && token.kval == Keyword_Kind::Typename);
+	Type type;
+	type.location = token.location;
 	switch (token.sval[0]) {
-	case 'b': return { Type::Kind::Bool };
-	case 'p': return { Type::Kind::Pointer };
-	case 'u': return { Type::Kind::Int };
-	case 'a': return { Type::Kind::Any };
+	case 'b': type.kind = Type::Kind::Bool;    return type;
+	case 'p': type.kind = Type::Kind::Pointer; return type;
+	case 'u': type.kind = Type::Kind::Int;     return type;
+	case 'a': type.kind = Type::Kind::Any;     return type;
 	}
 
 	unreachable("unparsable type definition (bug in lexer probably)");
@@ -70,7 +72,13 @@ struct State
 
 void verify_output(State const& s)
 {
-	while (!s.stack.empty() && !s.output.empty()) {
+	if (!s.stack.empty() && !s.output.empty()) {
+		auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
+
+		if (stk == s.stack.rend() && exp == s.output.rend()) {
+			return;
+		}
+
 		unreachable("unimplemented");
 	}
 
@@ -78,9 +86,9 @@ void verify_output(State const& s)
 		return;
 
 	if (s.output.empty()) {
-		error("Excess data on stack");
+		error(s.stack.begin()->location, "Excess data on stack");
 		for (auto it = s.stack.rbegin(); it != s.stack.rend(); ++it) {
-			info("value of type `{}`"_format(type_name(*it)));
+			info(it->location, "value of type `{}`"_format(type_name(*it)));
 		}
 		exit(1);
 	}
@@ -106,7 +114,7 @@ concept Effects = requires (Effs effects, unsigned i)
 };
 
 
-void typecheck_stack_effects(State& state, Effects auto const& effects)
+void typecheck_stack_effects(State& state, Effects auto const& effects, Location const& loc, std::string_view operation_name)
 {
 	struct Error
 	{
@@ -175,7 +183,7 @@ void typecheck_stack_effects(State& state, Effects auto const& effects)
 	auto const best_match_score = *std::max_element(matching.begin(), matching.end());
 
 	// TODO operation name
-	error("Invalid stack state of operation");
+	error(loc, "Invalid stack state for operation `{}`"_format(operation_name));
 	unsigned last_effect_id = -1;
 	for (auto const& err : deffered_errors) {
 		if (matching[err.effect_id] != best_match_score)
@@ -188,11 +196,11 @@ void typecheck_stack_effects(State& state, Effects auto const& effects)
 
 		switch (err.kind) {
 		case Error::Missing:
-			info("missing value of type `{}`"_format(type_name(err.effect)));
+			info(loc, "missing value of type `{}`"_format(type_name(err.effect)));
 			break;
 
 		case Error::Different_Types:
-			info("expected value of type `{}`. Found `{}`"_format(type_name(err.effect), type_name(err.state)));
+			info(err.state.location, "expected value of type `{}`. Found `{}`"_format(type_name(err.effect), type_name(err.state)));
 			break;
 		}
 	}
@@ -263,7 +271,7 @@ namespace Type_DSL
 #define Typecheck_Stack_Effect(s, ...) \
 	do { \
 		static constexpr auto SE = std::tuple { __VA_ARGS__ }; \
-		typecheck_stack_effects(s, view(SE)); \
+		typecheck_stack_effects(s, view(SE), op.location, op.token.sval); \
 		++s.ip; \
 	} while(0)
 
@@ -287,12 +295,12 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 
 		switch (auto const &op = ops[s.ip]; op.kind) {
 		case Operation::Kind::Push_Int:
-			s.stack.push_back(op.type);
+			s.stack.push_back(op.type.with_location((Location)op.location));
 			++s.ip;
 			break;
 
 		case Operation::Kind::Push_Symbol:
-			s.stack.push_back({ Type::Kind::Pointer });
+			s.stack.push_back(Type{ Type::Kind::Pointer }.with_location((Location)op.location));
 			++s.ip;
 			break;
 
@@ -300,7 +308,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 			{
 				static constinit auto SE = std::tuple { Any >= Any };
 				std::get<0>(SE).output[0] = op.type;
-				typecheck_stack_effects(s, view(SE));
+				typecheck_stack_effects(s, view(SE), op.location, op.token.sval);
 				++s.ip;
 			}
 			break;
@@ -335,7 +343,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 
 				auto [stk, exp] = std::mismatch(s.stack.begin(), s.stack.end(), expected.stack.begin(), expected.stack.end());
 				if (stk != s.stack.end() || exp != expected.stack.end()) {
-					error_fatal("Loop differs stack");
+					error_fatal(op.location, "Loop differs stack");
 				}
 
 				states.pop_back();
@@ -344,13 +352,14 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 				states.push_back(s);
 				assert(op.jump != Operation::Empty_Jump);
 				states.back().ip = op.jump;
+				std::swap(states.back(), states[states.size() - 2]);
 			}
 			break;
 
 		case Operation::Kind::Call_Symbol:
 			assert(op.word);
 			ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
-			typecheck_stack_effects(s, std::array { op.word->effect });
+			typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
 			++s.ip;
 			break;
 
@@ -449,7 +458,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 					break;
 
 				case Intrinsic_Kind::Load:
-					Typecheck_Stack_Effect(s, Ptr >> Int >= Empty);
+					Typecheck_Stack_Effect(s, Ptr >= Int);
 					break;
 
 				case Intrinsic_Kind::Store:
@@ -471,6 +480,8 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 						});
 						effect.input.push_back({ Type::Kind::Int }); // sycall number
 						effect.output.push_back({ Type::Kind::Int });
+						typecheck_stack_effects(s, std::array { effect }, op.location, op.token.sval);
+						++s.ip;
 					}
 					break;
 
