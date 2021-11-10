@@ -26,6 +26,7 @@ try {
 		("help,h", "produce help message")
 		("verbose,v", "print all unnesesary info during compilation")
 		("check,c", "type check program")
+		("no-colors,C", "errors, warnings and info messages will NOT show color coded")
 	;
 
 	po::options_description build("Build options");
@@ -107,6 +108,7 @@ try {
 	verbose   = vm.count("verbose");
 	typecheck = vm.count("check");
 	dump_words_effects = vm.count("dump-effects");
+	output_colors = !vm.count("no-colors") && isatty(STDOUT_FILENO);
 
 	if (control_flow_graph = vm.count("control-flow")) {
 		control_flow = executable;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arguments.hh"
 #include <source_location>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -31,15 +32,36 @@ static bool Compilation_Failed = false;
 
 inline std::string_view report_kind_str(Report r)
 {
-	switch (r) {
-	case Report::Command:       return "cmd";
-	case Report::Error:         return "error";
-	case Report::Info:          return "info";
-	case Report::Warning:       return "warning";
-	case Report::Optimization:  return "optimized";
-	default:
-	case Report::Compiler_Bug:  return "compiler bug";
+#define Color_Error   "\x1b[31;1m"
+#define Color_Info    "\x1b[34;1m"
+#define Color_Warning "\x1b[35;1m"
+#define Color_Reset   "\x1b[0m"
+
+	if (compiler_arguments.output_colors) {
+		switch (r) {
+		case Report::Command:       return Color_Info    "cmd"          Color_Reset;
+		case Report::Error:         return Color_Error   "error"        Color_Reset;
+		case Report::Info:          return Color_Info    "info"         Color_Reset;
+		case Report::Warning:       return Color_Warning "warning"      Color_Reset;
+		case Report::Optimization:  return Color_Info    "optimized"    Color_Reset;
+		default:
+		case Report::Compiler_Bug:  return Color_Error   "compiler bug" Color_Reset;
+		}
+	} else {
+		switch (r) {
+		case Report::Command:       return "cmd";
+		case Report::Error:         return "error";
+		case Report::Info:          return "info";
+		case Report::Warning:       return "warning";
+		case Report::Optimization:  return "optimized";
+		default:
+		case Report::Compiler_Bug:  return "compiler bug";
+		}
 	}
+#undef Color_Error
+#undef Color_Info
+#undef Color_Warning
+#undef Color_Reset
 }
 
 inline void report(Report r, Locationable auto const& loc, auto const& m)

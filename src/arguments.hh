@@ -21,6 +21,7 @@ extern struct Arguments
 	bool control_flow_graph = false;
 	bool run_mode           = false;
 	bool dump_words_effects = false;
+	bool output_colors      = true;
 
 	void parse(int argc, char **argv);
 } compiler_arguments;
