@@ -34,6 +34,7 @@ enum class Keyword_Kind
 	Import,
 	Return,
 	Bool,
+	Dynamic,
 
 	// Type definitions
 	Typename,

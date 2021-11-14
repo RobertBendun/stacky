@@ -128,6 +128,7 @@ namespace parser
 
 			switch (token.kval) {
 			case Keyword_Kind::Do:
+			case Keyword_Kind::Dynamic:
 			case Keyword_Kind::Else:
 			case Keyword_Kind::End:
 			case Keyword_Kind::If:
@@ -399,6 +400,7 @@ namespace parser
 				case Keyword_Kind::Constant:
 				case Keyword_Kind::End:
 				case Keyword_Kind::Function:
+				case Keyword_Kind::Dynamic:
 				case Keyword_Kind::Stack_Effect_Definition:
 				case Keyword_Kind::Stack_Effect_Divider:
 					unreachable(
@@ -458,6 +460,10 @@ trivial:
 			case Keyword_Kind::Array:
 			case Keyword_Kind::Constant:
 				error(token, "Definitions of arrays or constants are not allowed inside function bodies!");
+				break;
+
+			case Keyword_Kind::Dynamic:
+				assert(false);
 				break;
 
 			case Keyword_Kind::Stack_Effect_Definition:

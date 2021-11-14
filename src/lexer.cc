@@ -20,6 +20,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "bool"sv,      Keyword_Kind::Typename },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },
+	std::tuple { "dyn"sv,       Keyword_Kind::Dynamic },
 	std::tuple { "else"sv,      Keyword_Kind::Else },
 	std::tuple { "end"sv,       Keyword_Kind::End },
 	std::tuple { "false"sv,     Keyword_Kind::Bool },
@@ -45,7 +46,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 // This value represents number of keywords inside enumeration
 // Since one keyword kind may represents several symbols,
 // we relay on number of kinds defined
-static_assert(int(Keyword_Kind::Last)+1 == 15, "Exhaustive definition of keywords lookup");
+static_assert(int(Keyword_Kind::Last)+1 == 16, "Exhaustive definition of keywords lookup");
 
 template<unsigned Base>
 static auto parse_int(Token &token) -> bool
