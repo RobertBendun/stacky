@@ -80,28 +80,37 @@ void verify_output(State const& s)
 		exit(1);
 	};
 
-	if (!s.stack.empty() && !s.output.empty()) {
-		auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
-
-		if (stk == s.stack.rend() && exp == s.output.rend()) {
-			return;
+	auto const missing_data = [&](auto start) {
+		// TODO we don't report location here
+		error("Missing data from stack");
+		info("List of all missing data");
+		for (auto it = start; it != s.output.rend(); ++it) {
+			info(it->location, "value of type `{}`"_format(type_name(*it)));
 		}
+		exit(1);
+	};
 
-		if (exp == s.output.rend()) {
-			excess_data(stk);
-		}
-
-		unreachable("unimplemented");
-	}
-
-	if (s.stack.empty() && s.output.empty())
+	switch (s.stack.empty() << 1 | s.output.empty()) {
+	case 0b11: // stack empty, output empty
 		return;
-
-	if (s.output.empty()) {
+	case 0b01: // stack non-empty, output empty
 		excess_data(s.stack.rbegin());
-	}
+		break;
+	case 0b10: // stack empty, output non-empty
+		missing_data(s.output.rbegin());
+		break;
+	case 0b00: // stack non-empty, output non-empty
+		{
+			auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
+			if (stk == s.stack.rend() && exp == s.output.rend())
+				return;
 
-	unreachable("unimplemented");
+			if (exp == s.output.rend())
+				excess_data(stk);
+			missing_data(exp);
+		}
+		break;
+	}
 }
 
 template<typename Eff>
