@@ -16,6 +16,7 @@ static constexpr auto String_To_Keyword = sorted_array_of_tuples(
 	std::tuple { "[]u64"sv,     Keyword_Kind::Array },
 	std::tuple { "[]u8"sv,      Keyword_Kind::Array },
 	std::tuple { "[]usize"sv,   Keyword_Kind::Array },
+	std::tuple { "any"sv,       Keyword_Kind::Typename },
 	std::tuple { "bool"sv,      Keyword_Kind::Typename },
 	std::tuple { "constant"sv,  Keyword_Kind::Constant },
 	std::tuple { "do"sv,        Keyword_Kind::Do },
@@ -137,7 +138,7 @@ bool lex(std::string_view const file, std::string_view const path, std::vector<T
 		if (i == file.size())
 			break;
 
-		auto &token = tokens.emplace_back(Token::Location{path, column, line});
+		auto &token = tokens.emplace_back(Location{path, column, line});
 
 		if (ch == '"' || ch == '\'') {
 			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;

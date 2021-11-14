@@ -1,12 +1,19 @@
 #include "stacky.hh"
+#include <algorithm>
+#include <numeric>
+#include <concepts>
+#include <ranges>
 
 Type Type::from(Token const& token)
 {
 	assert(token.kind == Token::Kind::Keyword && token.kval == Keyword_Kind::Typename);
+	Type type;
+	type.location = token.location;
 	switch (token.sval[0]) {
-	case 'b': return { Type::Kind::Bool };
-	case 'p': return { Type::Kind::Pointer };
-	case 'u': return { Type::Kind::Int };
+	case 'b': type.kind = Type::Kind::Bool;    return type;
+	case 'p': type.kind = Type::Kind::Pointer; return type;
+	case 'u': type.kind = Type::Kind::Int;     return type;
+	case 'a': type.kind = Type::Kind::Any;     return type;
 	}
 
 	unreachable("unparsable type definition (bug in lexer probably)");
@@ -18,6 +25,8 @@ auto type_name(Type const& type) -> std::string
 	case Type::Kind::Bool: return "bool";
 	case Type::Kind::Pointer: return "ptr";
 	case Type::Kind::Int: return "u64";
+	case Type::Kind::Any: return "any";
+	case Type::Kind::Variable: return "$" + std::to_string(type.var);
 	}
 	unreachable("we don't have more type kinds");
 }
@@ -30,509 +39,488 @@ template <> struct fmt::formatter<Type> : fmt::formatter<std::string> {
   }
 };
 
-void print_typestack_trace(Typestack& typestack, std::string_view verb="unhandled")
+auto stack_effect_string(auto const& stack_effect)
 {
-	for (auto i = typestack.size() - 1u; i < typestack.size(); --i) {
-		auto const& t = typestack[i];
-		info(t.op->token, "{} value of type `{}` was defined here"_format(verb, type_name(t)));
-	}
+	return "{} -- {}"_format(fmt::join(stack_effect.input, " "), fmt::join(stack_effect.output, " "));
 }
 
-void print_typestack_trace(auto begin, auto end, std::string_view verb="unhandled")
+auto Stack_Effect::string() const -> std::string
 {
-	for (end--; end != begin-1; --end) {
-		auto const& t = *end;
-		info(t.op->token, "{} value of type `{}` was defined here"_format(verb, type_name(t)));
-	}
+	return stack_effect_string(*this);
 }
 
-void ensure_enough_arguments(Typestack& typestack, Operation const& op, unsigned argc)
-{
-	if (typestack.size() < argc)
-		error_fatal("`{}` requires {} arguments on stack"_format(op.token.sval, argc));
-}
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
 
-void unexpected_type(Operation const& op, Type const& expected, Type const& found)
-{
-	error_fatal(op.token, "expected type `{}` but found `{}` for `{}`"_format(type_name(expected), type_name(found), op.token.sval));
-}
-
-void unexpected_type(Operation const& op, Type::Kind exp1, Type::Kind exp2, Type const& found)
-{
-	error_fatal(op.token, "expected type `{}` or `{}` but found `{}` for `{}`"_format(type_name({ exp1 }), type_name({ exp2 }), type_name(found), op.token.sval));
-}
-
-void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
-
-void typecheck(Word const& word)
+void typecheck(Generation_Info &geninfo, Word const& word)
 {
 	auto copy = word.effect.input;
-	typecheck(word.function_body, std::move(copy), word.effect.output);
+	typecheck(geninfo, word.function_body, std::move(copy), word.effect.output);
 }
 
-void typecheck(std::vector<Operation> const& ops)
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops)
 {
-	typecheck(ops, {}, {});
+	typecheck(geninfo, ops, {}, {});
 }
 
-void typecheck(std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected)
+struct State
 {
-	bool return_has_been_seen = false;
+	Typestack      stack;
+	Typestack_View output;
+	unsigned       ip = 0;
+};
 
-	std::vector<std::tuple<Typestack, Operation::Kind>> blocks;
-
-	auto const pop = [&typestack]() -> Type { auto retval = std::move(typestack.back()); typestack.pop_back(); return retval; };
-	auto const push = [&typestack](Type::Kind kind, Operation const& op) { typestack.push_back({ kind, &op }); };
-	auto const top = [&typestack](unsigned offset = 0) -> Type& {	return typestack[typestack.size() - offset - 1]; };
-
-	auto const int_binop = [&typestack](Operation const& op, Type lhs, Type const& rhs, bool emit_value = true)
-	{
-		if (lhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, lhs);
-		if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
-
-		if (emit_value) {
-			lhs.op = &op;
-			typestack.push_back(lhs);
+void verify_output(State const& s)
+{
+	auto const excess_data = [&](auto start) {
+		error(s.stack.back().location, "Excess data on stack");
+		info(s.stack.back().location, "List of all excess data introductions: ");
+		for (auto it = start; it != s.stack.rend(); ++it) {
+			info(it->location, "value of type `{}`"_format(type_name(*it)));
 		}
+		exit(1);
 	};
 
-	for (auto const& op : ops) {
-		switch (op.kind) {
-		case Operation::Kind::Push_Symbol:
-			typestack.push_back({ Type::Kind::Pointer, &op });
+	auto const missing_data = [&](auto start) {
+		// TODO we don't report location here
+		error("Missing data from stack");
+		info("List of all missing data");
+		for (auto it = start; it != s.output.rend(); ++it) {
+			info(it->location, "value of type `{}`"_format(type_name(*it)));
+		}
+		exit(1);
+	};
+
+	switch (s.stack.empty() << 1 | s.output.empty()) {
+	case 0b11: // stack empty, output empty
+		return;
+	case 0b01: // stack non-empty, output empty
+		excess_data(s.stack.rbegin());
+		break;
+	case 0b10: // stack empty, output non-empty
+		missing_data(s.output.rbegin());
+		break;
+	case 0b00: // stack non-empty, output non-empty
+		{
+			auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
+			if (stk == s.stack.rend() && exp == s.output.rend())
+				return;
+
+			if (exp == s.output.rend())
+				excess_data(stk);
+			missing_data(exp);
+		}
+		break;
+	}
+}
+
+template<typename Eff>
+concept Effect = requires (Eff effect)
+{
+	{ effect.input } -> std::ranges::random_access_range;
+	{ effect.output } -> std::ranges::random_access_range;
+
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.input)>, Type>;
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.output)>, Type>;
+};
+
+template<typename Effs>
+concept Effects = requires (Effs effects, unsigned i)
+{
+	{ effects[i] }      -> Effect;
+	{ effects.size() }  -> std::convertible_to<unsigned>;
+	{ effects.begin() } -> std::forward_iterator;
+	{ effects.end() }   -> std::forward_iterator;
+};
+
+
+void typecheck_stack_effects(State& state, Effects auto const& effects, Location const& loc, std::string_view operation_name)
+{
+	struct Error
+	{
+		unsigned effect_id;
+		enum { Missing, Different_Types } kind;
+		Type effect;
+		Type state = {};
+	};
+
+	std::vector<int> matching;
+	matching.reserve(effects.size());
+	std::vector<Error> deffered_errors;
+
+	auto const minumum_number_of_arguments = std::accumulate(effects.begin(), effects.end(), (unsigned long)-1, [](auto p, auto v) {
+		return std::min(p, v.input.size());
+	});
+
+	if (minumum_number_of_arguments != 0 && state.stack.size() < minumum_number_of_arguments) {
+		error_fatal(loc, "`{}` requires miniumum {} argument{} on the stack"_format(operation_name, minumum_number_of_arguments, minumum_number_of_arguments > 1 ? "s" : ""));
+	}
+
+	for (unsigned effect_id = 0; effect_id < effects.size(); ++effect_id) {
+		Effect auto const& effect = effects[effect_id];
+		std::unordered_map<decltype(Type::var), Type> generics;
+
+		auto const compare = [&](Type const& stack, Type const& effect) {
+			if (effect.kind == Type::Kind::Variable) {
+				if (generics.contains(effect.var))
+					return generics.at(effect.var) == stack;
+				generics.insert({ effect.var, stack });
+				return true;
+			}
+			return stack == effect;
+		};
+
+		auto const ebeg = effect.input.rbegin();
+		auto const eend = effect.input.rend();
+		auto const send = state.stack.rend();
+		auto [s, e] = std::mismatch(state.stack.rbegin(), send, ebeg, eend, compare);
+
+		auto match = std::distance(ebeg, e);
+
+		if (e == eend) {
+			state.stack.erase((state.stack.rbegin() + effect.input.size()).base(), state.stack.end());
+			std::transform(effect.output.begin(), effect.output.end(), std::back_inserter(state.stack), [&](Type const& type) {
+				if (type.kind != Type::Kind::Variable)
+					return type;
+				ensure_fatal(generics.contains(type.var), "Couldn't deduce type variable");
+				return generics[type.var];
+			});
+			return;
+		}
+
+		if (s == send) {
+		missing:
+			for (; e != eend; ++e) deffered_errors.push_back({ effect_id, Error::Missing, *e });
+			matching.push_back(match);
+			continue;
+		}
+
+		for (; e != eend && s != send; ++s, ++e) {
+			if (compare(*e, *s)) { ++match; continue; }
+			deffered_errors.push_back({ effect_id, Error::Different_Types, *e, *s });
+		}
+
+		if (s == send && e != eend) {
+			goto missing;
+		} else {
+			matching.push_back(match);
+		}
+	}
+
+	auto const best_match_score = *std::max_element(matching.begin(), matching.end());
+
+	// TODO operation name
+	error(loc, "Invalid stack state for operation `{}`"_format(operation_name));
+	unsigned last_effect_id = -1;
+	for (auto const& err : deffered_errors) {
+		if (matching[err.effect_id] != best_match_score)
+			continue;
+
+		if (effects.size() != 1 && last_effect_id != err.effect_id) {
+			info("error trying to match: {}"_format(stack_effect_string(effects[err.effect_id])));
+			last_effect_id = err.effect_id;
+		}
+
+		switch (err.kind) {
+		case Error::Missing:
+			info(loc, "missing value of type `{}`"_format(type_name(err.effect)));
 			break;
 
+		case Error::Different_Types:
+			info(err.state.location, "expected value of type `{}`. Found `{}`"_format(type_name(err.effect), type_name(err.state)));
+			break;
+		}
+	}
+
+	exit(1);
+}
+
+namespace Type_DSL
+{
+	static constexpr auto Empty = std::array<Type, 0>{};
+#define Alias(V, K) static constexpr auto V = std::array { Type { Type::Kind::K } }
+	Alias(Any,   Any);
+	Alias(Bool,  Bool);
+	Alias(Int,   Int);
+	Alias(Ptr,   Pointer);
+#undef Alias
+	static_assert(5 == (int)Type::Kind::Count+1, "All types are handled in Type_DSL");
+
+	static constexpr auto _1 = std::array<Type, 1>{ Type { Type::Kind::Variable, 1 } };
+	static constexpr auto _2 = std::array<Type, 1>{ Type { Type::Kind::Variable, 2 } };
+	static constexpr auto _3 = std::array<Type, 1>{ Type { Type::Kind::Variable, 3 } };
+	static constexpr auto _4 = std::array<Type, 1>{ Type { Type::Kind::Variable, 4 } };
+	static constexpr auto _5 = std::array<Type, 1>{ Type { Type::Kind::Variable, 5 } };
+	static constexpr auto _6 = std::array<Type, 1>{ Type { Type::Kind::Variable, 6 } };
+	static constexpr auto _7 = std::array<Type, 1>{ Type { Type::Kind::Variable, 7 } };
+	static constexpr auto _8 = std::array<Type, 1>{ Type { Type::Kind::Variable, 8 } };
+	static constexpr auto _9 = std::array<Type, 1>{ Type { Type::Kind::Variable, 9 } };
+
+	template<auto N, auto M>
+	constexpr auto operator>>(std::array<Type, N> const& lhs, std::array<Type, M> const& rhs)
+	{
+		return [&]<std::size_t ...I, std::size_t ...J>(std::index_sequence<I...>, std::index_sequence<J...>) {
+			return std::array { lhs[I]..., rhs[J]... };
+		}(std::make_index_sequence<N>{}, std::make_index_sequence<M>{});
+	}
+
+	template<auto N, auto M>
+	constexpr auto operator>=(std::array<Type, N> const& lhs, std::array<Type, M> const& rhs)
+	{
+		struct Stack_Effect
+		{
+			std::array<Type, N> input;
+			std::array<Type, M> output;
+		} stack_effect = { lhs, rhs };
+		return stack_effect;
+	}
+
+	struct Stack_Effect_View
+	{
+		std::span<Type const> input;
+		std::span<Type const> output;
+	};
+
+	constexpr auto view(auto const& effects)
+	{
+		auto const convert = [&](auto const& ...effects) {
+			return std::array {
+				Stack_Effect_View {
+					effects.input,
+					effects.output
+				} ...
+			};
+		};
+		return std::apply(convert, effects);
+	}
+}
+
+#define Typecheck_Stack_Effect(s, ...) \
+	do { \
+		static constexpr auto SE = std::tuple { __VA_ARGS__ }; \
+		typecheck_stack_effects(s, view(SE), op.location, op.token.sval); \
+		++s.ip; \
+	} while(0)
+
+void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&initial_typestack, Typestack const& expected)
+{
+	using namespace Type_DSL;
+
+	std::unordered_map<decltype(State::ip), State> visited_do_ops;
+	std::vector<State> states = { State { std::move(initial_typestack), std::span(expected), 0 } };
+
+	while (!states.empty()) {
+		auto& s = states.back();
+
+		if (s.ip >= ops.size()) {
+		// It's the same for `return` operation and end of ops
+		ops_end:
+			verify_output(s);
+			states.pop_back();
+			continue;
+		}
+
+		switch (auto const &op = ops[s.ip]; op.kind) {
 		case Operation::Kind::Push_Int:
-			{
-				auto type = op.type;
-				type.op = &op;
-				typestack.push_back(type);
-			}
+			s.stack.push_back(op.type.with_location((Location)op.location));
+			++s.ip;
+			break;
+
+		case Operation::Kind::Push_Symbol:
+			s.stack.push_back(Type{ Type::Kind::Pointer }.with_location((Location)op.location));
+			++s.ip;
 			break;
 
 		case Operation::Kind::Cast:
-			ensure_enough_arguments(typestack, op, 1);
-			pop();
-			push(op.type.kind, op);
-			break;
-
-		case Operation::Kind::Intrinsic:
-			switch (op.intrinsic) {
-			case Intrinsic_Kind::Add:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto rhs = pop();
-					auto lhs = pop();
-
-					if (lhs.kind == rhs.kind) {
-						int_binop(op, lhs, rhs);
-					} else if (lhs.kind == Type::Kind::Int) {
-						if (rhs.kind != Type::Kind::Pointer) unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, rhs);
-						push(Type::Kind::Pointer, op);
-					} else if (lhs.kind == Type::Kind::Pointer) {
-						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
-						push(Type::Kind::Pointer, op);
-					} else {
-						unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
-					}
-				}
-				break;
-
-			case Intrinsic_Kind::Subtract:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
-
-					if (lhs.kind == rhs.kind) {
-						if (lhs.kind == Type::Kind::Int)
-							int_binop(op, lhs, rhs);
-						else if (lhs.kind == Type::Kind::Pointer)
-							push(Type::Kind::Int, op);
-						else
-							unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
-					} else if (lhs.kind == Type::Kind::Pointer) {
-						if (rhs.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, rhs);
-						push(Type::Kind::Pointer, op);
-					} else if (rhs.kind == Type::Kind::Pointer) {
-						unexpected_type(op, { Type::Kind::Int }, rhs);
-					} else {
-						unexpected_type(op, Type::Kind::Int, Type::Kind::Pointer, lhs);
-					}
-				}
-				break;
-
-			case Intrinsic_Kind::Equal:
-			case Intrinsic_Kind::Not_Equal:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
-					if (lhs.kind != rhs.kind) {
-						unexpected_type(op, lhs, rhs);
-					}
-					push(Type::Kind::Bool, op);
-				}
-				break;
-
-			case Intrinsic_Kind::Boolean_And:
-			case Intrinsic_Kind::Boolean_Or:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
-					if (lhs.kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, lhs);
-					if (rhs.kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, rhs);
-					push(Type::Kind::Bool, op);
-				}
-				break;
-
-			case Intrinsic_Kind::Boolean_Negate:
-				{
-					ensure_enough_arguments(typestack, op, 1);
-					if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
-					top().op = &op;
-				}
-				break;
-
-			case Intrinsic_Kind::Mul:
-			case Intrinsic_Kind::Mod:
-			case Intrinsic_Kind::Div:
-			case Intrinsic_Kind::Min:
-			case Intrinsic_Kind::Max:
-			case Intrinsic_Kind::Bitwise_And:
-			case Intrinsic_Kind::Bitwise_Or:
-			case Intrinsic_Kind::Bitwise_Xor:
-			case Intrinsic_Kind::Left_Shift:
-			case Intrinsic_Kind::Right_Shift:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto rhs = pop();
-					auto lhs = pop();
-					int_binop(op, lhs, rhs);
-				}
-				break;
-
-			case Intrinsic_Kind::Greater:
-			case Intrinsic_Kind::Greater_Eq:
-			case Intrinsic_Kind::Less:
-			case Intrinsic_Kind::Less_Eq:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto const& rhs = pop();
-					auto const& lhs = pop();
-					if (lhs.kind != rhs.kind || lhs.kind != Type::Kind::Int) {
-						unexpected_type(op, lhs, rhs);
-					}
-					push(Type::Kind::Bool, op);
-				}
-				break;
-
-			case Intrinsic_Kind::Div_Mod:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto &rhs = top();
-					auto &lhs = top(1);
-					int_binop(op, lhs, rhs, false);
-					lhs.op = rhs.op = &op;
-				}
-				break;
-
-			case Intrinsic_Kind::Drop:
-				ensure_enough_arguments(typestack, op, 1);
-				typestack.pop_back();
-				break;
-
-			case Intrinsic_Kind::Dup:
-				ensure_enough_arguments(typestack, op, 1);
-				typestack.push_back(top().with_op(&op));
-				break;
-
-			case Intrinsic_Kind::Swap:
-				ensure_enough_arguments(typestack, op, 2);
-				std::swap(top(), top(1));
-				break;
-
-			case Intrinsic_Kind::Over:
-				ensure_enough_arguments(typestack, op, 2);
-				typestack.push_back(top(1).with_op(&op));
-				break;
-
-			case Intrinsic_Kind::Rot:
-				ensure_enough_arguments(typestack, op, 3);
-				std::swap(top(), top(2));
-				std::swap(top(1), top(2));
-				break;
-
-			case Intrinsic_Kind::Tuck:
-				ensure_enough_arguments(typestack, op, 2);
-				typestack.push_back(top().with_op(&op));
-				std::swap(top(1), top(2));
-				break;
-
-			case Intrinsic_Kind::Two_Dup:
-				ensure_enough_arguments(typestack, op, 2);
-				typestack.push_back(top(1).with_op(&op));
-				typestack.push_back(top(1).with_op(&op));
-				break;
-
-			case Intrinsic_Kind::Two_Drop:
-				ensure_enough_arguments(typestack, op, 2);
-				pop();
-				pop();
-				break;
-
-			case Intrinsic_Kind::Two_Over:
-				ensure_enough_arguments(typestack, op, 4);
-				typestack.push_back(top(3).with_op(&op));
-				typestack.push_back(top(3).with_op(&op));
-				break;
-
-			case Intrinsic_Kind::Two_Swap:
-				ensure_enough_arguments(typestack, op, 4);
-				std::swap(top(3), top(1));
-				std::swap(top(2), top());
-				break;
-
-			case Intrinsic_Kind::Load:
-				ensure_enough_arguments(typestack, op, 1);
-				if (auto t = pop(); t.kind != Type::Kind::Pointer) unexpected_type(op, { Type::Kind::Pointer }, t);
-				push(Type::Kind::Int, op);
-				break;
-
-			case Intrinsic_Kind::Store:
-				{
-					ensure_enough_arguments(typestack, op, 2);
-					auto const val = pop();
-					auto const addr = pop();
-					if (addr.kind != Type::Kind::Pointer) unexpected_type(op, { Type::Kind::Pointer }, addr);
-					if (val.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, addr);
-				}
-				break;
-
-			case Intrinsic_Kind::Top:
-				push(Type::Kind::Pointer, op);
-				break;
-
-			case Intrinsic_Kind::Call:
-				error_fatal(op.token, "`call` is not supported by typechecking");
-				break;
-
-			case Intrinsic_Kind::Syscall:
-				{
-					assert(op.token.sval[7] >= '0' && op.token.sval[7] <= '6');
-					unsigned syscall_count = op.token.sval[7] - '0';
-					ensure_enough_arguments(typestack, op, syscall_count + 1);
-					if (auto t = pop(); t.kind != Type::Kind::Int) unexpected_type(op, { Type::Kind::Int }, t);
-					for (; syscall_count > 0; --syscall_count) pop();
-					push(Type::Kind::Int, op);
-				}
-				break;
-
-			case Intrinsic_Kind::Random32:
-			case Intrinsic_Kind::Random64:
-				{
-					Type t;
-					t.kind = Type::Kind::Int;
-					t.op = &op;
-					typestack.push_back(t);
-				}
-				break;
+			{
+				static constinit auto SE = std::tuple { Any >= Any };
+				std::get<0>(SE).output[0] = op.type;
+				typecheck_stack_effects(s, view(SE), op.location, op.token.sval);
+				++s.ip;
 			}
 			break;
 
 		case Operation::Kind::If:
-			ensure_enough_arguments(typestack, op, 1);
-			if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
-			pop();
-			blocks.push_back({ typestack, Operation::Kind::If });
+			{
+				Typecheck_Stack_Effect(s, Bool >= Empty);
+				assert(op.jump != Operation::Empty_Jump);
+				states.push_back(State { s.stack, s.output, op.jump });
+			}
 			break;
 
 		case Operation::Kind::Else:
-			{
-				// move onto blocks then branch result stack
-				// reset typestack into pre-if form
-				auto [before_if, if_kind] = std::move(blocks.back());
-				blocks.pop_back();
-				assert(if_kind == Operation::Kind::If);
-				blocks.push_back({ typestack, Operation::Kind::Else });
-				typestack = std::move(before_if);
-			}
-			break;
-
-		case Operation::Kind::While:
-			blocks.push_back({ typestack, Operation::Kind::While });
-			break;
-
-		case Operation::Kind::Do:
-			ensure_enough_arguments(typestack, op, 1);
-			if (top().kind != Type::Kind::Bool) unexpected_type(op, { Type::Kind::Bool }, top());
-			pop();
-			blocks.push_back({ typestack, Operation::Kind::Do });
+			assert(op.jump != Operation::Empty_Jump);
+			s.ip = op.jump;
 			break;
 
 		case Operation::Kind::End:
-			{
-				assert(!blocks.empty());
-				auto [types, opened] = std::move(blocks.back());
-				blocks.pop_back();
-
-				switch (opened) {
-				case Operation::Kind::If:
-					if (return_has_been_seen) {
-						typestack = std::move(types);
-						return_has_been_seen = false;
-						break;
-					}
-
-					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
-						error(op.token, "`if` without `else` should have the same type stack shape before and after execution");
-
-						if (types.size() != typestack.size()) {
-							if (e == std::cend(types)) {
-								info(op.token, "there are {} excess values on the stack"_format(std::distance(a, std::cend(typestack))));
-								print_typestack_trace(a, std::cend(typestack), "excess");
-							} else {
-								info(op.token, "there are missing {} values on the stack"_format(std::distance(e, std::cend(types))));
-								print_typestack_trace(e, std::cend(types), "missing");
-							}
-						} else {
-							// stacks are equal in size, so difference is in types not their amount
-							for (; e != std::cend(types) && a != std::cend(typestack); ++e, ++a) {
-								if (e->kind == a->kind) continue;
-								unexpected_type(op, *e, *a);
-							}
-						}
-						exit(1);
-					}
-					break;
-
-				case Operation::Kind::Else:
-					ensure(!return_has_been_seen, "typechecking does not fully support return right now");
-
-					if (auto [e, a] = std::mismatch(std::cbegin(types), std::cend(types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(types) || a != std::cend(typestack)) {
-						error(op.token, "`if` ... `else` and `else` ... `end` branches must have matching typestacks");
-						if (types.size() != typestack.size()) {
-							if (e == std::cend(types)) {
-								info(op.token, "there are {} excess values in `else` branch"_format(std::distance(a, std::cend(typestack))));
-								print_typestack_trace(a, std::cend(typestack), "excess");
-							} else {
-								info(op.token, "there are missing {} values in `else` branch"_format(std::distance(e, std::cend(types))));
-								print_typestack_trace(e, std::cend(types), "missing");
-							}
-						} else {
-							// stacks are equal in size, so difference is in types not their amount
-							for (; e != std::cend(types) && a != std::cend(typestack); ++e, ++a) {
-								if (e->kind == a->kind) continue;
-								unexpected_type(op, *e, *a);
-							}
-						}
-						exit(1);
-					}
-					break;
-
-				case Operation::Kind::Do:
-					{
-						ensure(!return_has_been_seen, "typechecking does not fully support return right now");
-						auto [while_types, opened] = std::move(blocks.back());
-						blocks.pop_back();
-						assert(opened == Operation::Kind::While);
-
-						if (auto [e, a] = std::mismatch(std::cbegin(while_types), std::cend(while_types), std::cbegin(typestack), std::cend(typestack)); e != std::cend(while_types) || a != std::cend(typestack)) {
-							error(op.token, "`while ... do` should have the same type stack shape before and after execution");
-							if (while_types.size() != typestack.size()) {
-								if (e == std::cend(while_types)) {
-									info(op.token, "there are {} excess values in loop body"_format(std::distance(a, std::cend(typestack))));
-									print_typestack_trace(a, std::cend(typestack), "excess");
-								} else {
-									info(op.token, "there are missing {} values in loop body"_format(std::distance(e, std::cend(while_types))));
-									print_typestack_trace(e, std::cend(while_types), "missing");
-								}
-							} else {
-								// stacks are equal in size, so difference is in types not their amount
-								for (; e != std::cend(while_types) && a != std::cend(typestack); ++e, ++a) {
-									if (e->kind == a->kind) continue;
-									unexpected_type(op, *e, *a);
-								}
-							}
-							exit(1);
-						}
-					}
-					break;
-
-
-				case Operation::Kind::While:
-				case Operation::Kind::Call_Symbol:
-				case Operation::Kind::Cast:
-				case Operation::Kind::End:
-				case Operation::Kind::Intrinsic:
-				case Operation::Kind::Push_Int:
-				case Operation::Kind::Push_Symbol:
-				case Operation::Kind::Return:
-					unreachable("all statements falling into this case does not open blocks");
-				}
-			}
+			assert(op.jump != Operation::Empty_Jump);
+			s.ip = op.jump;
 			break;
 
+		case Operation::Kind::While:
+			++s.ip;
+			break;
+
+		case Operation::Kind::Do:
+			Typecheck_Stack_Effect(s, Bool >= Empty);
+
+			if (visited_do_ops.contains(s.ip - 1)) {
+				auto const& expected = visited_do_ops[s.ip-1];
+
+				auto [stk, exp] = std::mismatch(s.stack.begin(), s.stack.end(), expected.stack.begin(), expected.stack.end());
+				if (stk != s.stack.end() || exp != expected.stack.end()) {
+					error_fatal(op.location, "Loop differs stack");
+				}
+
+				states.pop_back();
+			} else {
+				visited_do_ops.insert({ s.ip - 1, s });
+				states.push_back(s);
+				assert(op.jump != Operation::Empty_Jump);
+				states.back().ip = op.jump;
+				std::swap(states.back(), states[states.size() - 2]);
+			}
+			break;
 
 		case Operation::Kind::Call_Symbol:
+			assert(op.word);
+			ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
+			typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
+			++s.ip;
+			break;
+
+		case Operation::Kind::Return:
+			goto ops_end;
+
+		case Operation::Kind::Intrinsic:
 			{
-				ensure_fatal(op.word != nullptr && op.word->has_effect, op.token,
-						"Cannot typecheck word `{}` without type signature"_format(op.sval));
-				auto const& effect = op.word->effect;
-				ensure_enough_arguments(typestack, op, effect.input.size());
+				switch (op.intrinsic) {
+				case Intrinsic_Kind::Drop:
+					Typecheck_Stack_Effect(s, Any >= Empty);
+					break;
 
-				for (unsigned i = effect.input.size() - 1; i < effect.input.size(); --i) {
-					auto const &in = effect.input[i];
-					if (auto top = pop(); in != top)
-						unexpected_type(op, in, top);
+				case Intrinsic_Kind::Two_Drop:
+					Typecheck_Stack_Effect(s, Any >> Any >= Empty);
+					break;
+
+				case Intrinsic_Kind::Add:
+					Typecheck_Stack_Effect(s, Ptr >> Int >= Ptr, Int >> Ptr >= Ptr, Int >> Int >= Int);
+					break;
+
+				case Intrinsic_Kind::Subtract:
+					Typecheck_Stack_Effect(s, Ptr >> Ptr >= Int, Ptr >> Int >= Ptr, Int >> Int >= Int);
+					break;
+
+				case Intrinsic_Kind::Less:
+				case Intrinsic_Kind::Less_Eq:
+				case Intrinsic_Kind::Greater:
+				case Intrinsic_Kind::Greater_Eq:
+				case Intrinsic_Kind::Equal:
+				case Intrinsic_Kind::Not_Equal:
+					Typecheck_Stack_Effect(s, Ptr >> Ptr >= Bool, Int >> Int >= Bool, Bool >> Bool >= Bool);
+					break;
+
+				case Intrinsic_Kind::Boolean_Negate:
+					Typecheck_Stack_Effect(s, Bool >= Bool);
+					break;
+
+				case Intrinsic_Kind::Boolean_And:
+				case Intrinsic_Kind::Boolean_Or:
+					Typecheck_Stack_Effect(s, Bool >> Bool >= Bool);
+					break;
+
+				case Intrinsic_Kind::Bitwise_And:
+				case Intrinsic_Kind::Bitwise_Or:
+				case Intrinsic_Kind::Bitwise_Xor:
+				case Intrinsic_Kind::Left_Shift:
+				case Intrinsic_Kind::Right_Shift:
+				case Intrinsic_Kind::Mul:
+				case Intrinsic_Kind::Div:
+				case Intrinsic_Kind::Mod:
+				case Intrinsic_Kind::Min:
+				case Intrinsic_Kind::Max:
+					Typecheck_Stack_Effect(s, Int >> Int >= Int);
+					break;
+
+				case Intrinsic_Kind::Div_Mod:
+					Typecheck_Stack_Effect(s, Int >> Int >= Int >> Int);
+					break;
+
+				case Intrinsic_Kind::Dup:
+					Typecheck_Stack_Effect(s, _1 >= _1 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Dup:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _1 >> _2 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Over:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _1 >> _2 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Over:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >> _4 >= _1 >> _2 >> _3 >> _4 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Swap:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _2 >> _1);
+					break;
+
+				case Intrinsic_Kind::Two_Swap:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >> _4 >= _3 >> _4 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Tuck:
+					Typecheck_Stack_Effect(s, _1 >> _2 >= _2 >> _1 >> _2);
+					break;
+
+				case Intrinsic_Kind::Rot:
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >= _2 >> _3 >> _1);
+					break;
+
+				case Intrinsic_Kind::Random32:
+				case Intrinsic_Kind::Random64:
+					Typecheck_Stack_Effect(s, Empty >= Int);
+					break;
+
+				case Intrinsic_Kind::Load:
+					Typecheck_Stack_Effect(s, Ptr >= Int);
+					break;
+
+				case Intrinsic_Kind::Store:
+					Typecheck_Stack_Effect(s, Ptr >> Any >= Empty);
+					break;
+
+				case Intrinsic_Kind::Top:
+					Typecheck_Stack_Effect(s, _1 >= _1 >> Ptr);
+					break;
+
+				case Intrinsic_Kind::Syscall:
+					{
+						assert(op.token.sval.size() == 8 && op.token.sval[7] >= '0' && op.token.sval[7] <= '6');
+						unsigned const syscall_count = op.token.sval[7] - '0';
+
+						Stack_Effect effect;
+						std::generate_n(std::back_inserter(effect.input), syscall_count, [i = 1u]() mutable {
+								return Type { Type::Kind::Variable, i++ };
+						});
+						effect.input.push_back({ Type::Kind::Int }); // sycall number
+						effect.output.push_back({ Type::Kind::Int });
+						typecheck_stack_effects(s, std::array { effect }, op.location, op.token.sval);
+						++s.ip;
+					}
+					break;
+
+				case Intrinsic_Kind::Call:
+					assert_msg(false, "unimplemented: Requires support for storing stack effects in types");
+					break;
 				}
-
-				typestack.insert(std::cend(typestack), std::cbegin(effect.output), std::cend(effect.output));
 			}
 			break;
-		case Operation::Kind::Return:
-			return_has_been_seen = true;
-			if (auto [e, a] = std::mismatch(std::cbegin(expected), std::cend(expected), std::cbegin(typestack), std::cend(typestack)); e != std::cend(expected) || a != std::cend(typestack)) {
-				error("function body should have the same type stack as described in stack effect signature");
-				if (expected.size() != typestack.size()) {
-					if (e == std::cend(expected)) {
-						info("there are {} excess values in function body"_format(std::distance(a, std::cend(typestack))));
-						print_typestack_trace(a, std::cend(typestack), "excess");
-					} else {
-						info("there are missing {} values in function body"_format(std::distance(e, std::cend(expected))));
-						print_typestack_trace(e, std::cend(expected), "missing");
-					}
-				} else {
-					// stacks are equal in size, so difference is in types not their amount
-					for (; e != std::cend(expected) && a != std::cend(typestack); ++e, ++a) {
-						if (e->kind == a->kind) continue;
-						unexpected_type({}, *e, *a);
-					}
-				}
-				exit(1);
-			}
+#if 0
+		default:
+			unreachable("unimplemented");
+#endif
 		}
-	}
-
-	// TODO fill types
-	if (auto [e, a] = std::mismatch(std::cbegin(expected), std::cend(expected), std::cbegin(typestack), std::cend(typestack)); e != std::cend(expected) || a != std::cend(typestack)) {
-		error("function body should have the same type stack as described in stack effect signature");
-		if (expected.size() != typestack.size()) {
-			if (e == std::cend(expected)) {
-				info("there are {} excess values in function body"_format(std::distance(a, std::cend(typestack))));
-				print_typestack_trace(a, std::cend(typestack), "excess");
-			} else {
-				info("there are missing {} values in function body"_format(std::distance(e, std::cend(expected))));
-				print_typestack_trace(e, std::cend(expected), "missing");
-			}
-		} else {
-			// stacks are equal in size, so difference is in types not their amount
-			for (; e != std::cend(expected) && a != std::cend(typestack); ++e, ++a) {
-				if (e->kind == a->kind) continue;
-				unexpected_type({}, *e, *a);
-			}
-		}
-		exit(1);
 	}
 }

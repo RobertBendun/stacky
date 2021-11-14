@@ -252,9 +252,9 @@ auto main(int argc, char **argv) -> int
 				continue;
 			}
 
-			typecheck(word);
+			typecheck(geninfo, word);
 		}
-		typecheck(geninfo.main);
+		typecheck(geninfo, geninfo.main);
 	}
 
 	optimizer::optimize(geninfo);

@@ -99,6 +99,21 @@ enum class Intrinsic_Kind
 	Last = Syscall,
 };
 
+struct Location
+{
+	std::string_view file;
+	unsigned column;
+	unsigned line;
+	std::string_view function_name = {};
+
+	inline Location with_function(std::string_view fname) const
+	{
+		auto copy = *this;
+		copy.function_name = fname;
+		return copy;
+	}
+};
+
 struct Token
 {
 	enum class Kind
@@ -109,13 +124,6 @@ struct Token
 		Char,
 		Keyword,
 		Address_Of,
-	};
-
-	struct Location
-	{
-		std::string_view file;
-		unsigned column;
-		unsigned line;
 	};
 
 	Location location;
@@ -135,31 +143,49 @@ struct Type
 		Int,
 		Bool,
 		Pointer,
+		Any,
+		Variable,
+
+		Count = Variable
 	};
+
+	inline Type with_location(Location &&loc) const
+	{
+		auto copy = *this;
+		copy.location = std::move(loc);
+		return copy;
+	}
 
 	auto& operator=(Type::Kind k) { kind = k; return *this; }
 
-	auto operator==(Type const& other) const
+	auto compare_in_context(Type const& other, auto const& ctx) const -> bool
 	{
-		return kind == other.kind;
+		if (kind == Kind::Variable) {
+			if (other.kind == Kind::Variable)
+				return var == other.var || ctx[var] == ctx[other.var];
+			return ctx[var] == other;
+		} else if (other.kind == Kind::Variable) {
+			return other.compare_in_context(*this, ctx);
+		}
+
+		return *this == other;
+	}
+
+	auto operator==(Type const& other) const -> bool
+	{
+		return (kind == Kind::Any || other.kind == Kind::Any) || kind == other.kind;
 	}
 
 	auto operator!=(Type const& other) const { return !this->operator==(other); }
 
-	auto with_op(struct Operation const* op) const
-	{
-		auto copy = *this;
-		copy.op = op;
-		return copy;
-	}
-
 	Kind kind;
-	struct Operation const* op = nullptr;
-
+	unsigned var = -1;
+	Location location = {};
 	static Type from(Token const& token);
 };
 
 using Typestack = std::vector<Type>;
+using Typestack_View = std::span<Type const>;
 
 struct Stack_Effect
 {
@@ -168,12 +194,7 @@ struct Stack_Effect
 
 	inline auto& operator[](bool is_input) { return is_input ? input : output; }
 
-	auto string() const -> std::string
-	{
-		return "";
-		// TODO make code below compile
-		// return "{} -- {}"_format(fmt::join(input, " "), fmt::join(output, " "));
-	}
+	auto string() const -> std::string;
 };
 
 struct Operation
@@ -193,6 +214,7 @@ struct Operation
 		Return,
 	};
 
+
 	Kind kind;
 	Token token;
 	uint64_t ival;
@@ -206,6 +228,7 @@ struct Operation
 	std::string_view symbol_prefix;
 
 	Type type;
+	Location location;
 };
 
 struct Word
@@ -233,6 +256,8 @@ struct Word
 
 	bool has_effect = false;
 	Stack_Effect effect;
+	Location location;
+	std::string_view function_name;
 };
 
 using Words = std::unordered_map<std::string, Word>;
@@ -274,8 +299,8 @@ namespace parser
 }
 
 // Type checking
-void typecheck(std::vector<Operation> const& ops);
-void typecheck(Word const& word);
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops);
+void typecheck(Generation_Info &geninfo, Word const& word);
 
 // Optimization
 namespace optimizer
