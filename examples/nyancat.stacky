@@ -815,7 +815,7 @@ max_row 1 []u64
 
 last 1 []byte
 
-clear-screen fun
+clear-screen fun is
 	"\x1b[?25h\x1b[0m\x1b[H\x1b[2J" print
 end
 
@@ -851,7 +851,7 @@ end
 clear-screen
 
 0
-while 1 do
+while true do
 	"\x1b[H" print
 
 	# i y x
@@ -861,12 +861,12 @@ while 1 do
 				','
 			else
 				rot
-				dup 8 * frames + load64 2over swap 8 * rot + load64 + load8
+				dup 8 * frames + load64 ptr 2over swap 8 * rot + load64 ptr + load8
 			end
 
 			dup last load8 != over 8 * colors + load64 0 != and if
 				last over store8
-				8 * colors + load64 print
+				8 * colors + load64 ptr print
 			else
 				drop
 			end
@@ -886,4 +886,4 @@ while 1 do
 	end
 
 	90 msleep
-end
+end drop

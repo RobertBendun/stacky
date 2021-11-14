@@ -13,13 +13,14 @@ end
 timespec sizeof(timespec) []byte
 
 # seconds
-sleep fun # seconds --
+sleep fun u64 -- is
 	timespec timespec.tv_sec  + swap store64
 	timespec timespec.tv_nsec + 0 store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
 end
 
-msleep fun # miliseconds --
+# miliseconds
+msleep fun u64 -- is
 	timespec timespec.tv_sec  + 0 store64
 	timespec timespec.tv_nsec + swap 1000000 * store64
 	while timespec timespec SYS_nanosleep syscall2 0 < do end
@@ -61,13 +62,3 @@ date fun u64 -- u64 u64 u64 u64 u64 is
 	dup 10 < if 3 + else 9 - end
 	rot swap dup 2 <= u64 + swap
 end
-
-+minutes fun 60  * + end
-+hours fun 3600  * + end
-+days fun 86400  * + end
-+weeks fun 604800 * + end
-
--minutes fun 60  * - end
--hours fun 3600  * - end
--days fun 86400  * - end
--weeks fun 604800 * - end

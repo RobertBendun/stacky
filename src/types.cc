@@ -49,7 +49,6 @@ auto Stack_Effect::string() const -> std::string
 	return stack_effect_string(*this);
 }
 
-
 void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
 
 void typecheck(Generation_Info &geninfo, Word const& word)
@@ -72,11 +71,24 @@ struct State
 
 void verify_output(State const& s)
 {
+	auto const excess_data = [&](auto start) {
+		error(s.stack.back().location, "Excess data on stack");
+		info(s.stack.back().location, "List of all excess data introductions: ");
+		for (auto it = start; it != s.stack.rend(); ++it) {
+			info(it->location, "value of type `{}`"_format(type_name(*it)));
+		}
+		exit(1);
+	};
+
 	if (!s.stack.empty() && !s.output.empty()) {
 		auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
 
 		if (stk == s.stack.rend() && exp == s.output.rend()) {
 			return;
+		}
+
+		if (exp == s.output.rend()) {
+			excess_data(stk);
 		}
 
 		unreachable("unimplemented");
@@ -86,12 +98,7 @@ void verify_output(State const& s)
 		return;
 
 	if (s.output.empty()) {
-		error(s.stack.back().location, "Excess data on stack");
-		info(s.stack.back().location, "List of all excess data introductions: ");
-		for (auto it = s.stack.rbegin(); it != s.stack.rend(); ++it) {
-			info(it->location, "value of type `{}`"_format(type_name(*it)));
-		}
-		exit(1);
+		excess_data(s.stack.rbegin());
 	}
 
 	unreachable("unimplemented");
@@ -189,7 +196,6 @@ void typecheck_stack_effects(State& state, Effects auto const& effects, Location
 			matching.push_back(match);
 		}
 	}
-
 
 	auto const best_match_score = *std::max_element(matching.begin(), matching.end());
 
@@ -460,7 +466,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 					break;
 
 				case Intrinsic_Kind::Rot:
-					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >= _3 >> _1 >> _2);
+					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >= _2 >> _3 >> _1);
 					break;
 
 				case Intrinsic_Kind::Random32:
@@ -473,7 +479,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 					break;
 
 				case Intrinsic_Kind::Store:
-					Typecheck_Stack_Effect(s, Ptr >> Int >= Empty);
+					Typecheck_Stack_Effect(s, Ptr >> Any >= Empty);
 					break;
 
 				case Intrinsic_Kind::Top:

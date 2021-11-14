@@ -4,7 +4,7 @@ Fst 1  constant
 Lst 20 constant
 
 # v i
-evenly-divisible fun
+evenly-divisible fun u64 -- bool is
 	Fst while dup Lst <= do
 		2dup mod 0 != if
 			2drop
@@ -12,11 +12,11 @@ evenly-divisible fun
 		end
 		1 +
 	end 2drop
-	true return
+	true
 end
 
 
-1 while 1 do
+1 while true do
 	dup evenly-divisible if
 		.
 		return
