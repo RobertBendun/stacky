@@ -463,7 +463,8 @@ trivial:
 				break;
 
 			case Keyword_Kind::Dynamic:
-				assert(false);
+				func.is_dynamically_typed = true;
+				ensure(i == 0, "Dynamic specifier must be placed after function keyword!");
 				break;
 
 			case Keyword_Kind::Stack_Effect_Definition:
@@ -494,8 +495,13 @@ trivial:
 						case Keyword_Kind::Typename:
 							effect[divider_has_been_seen].push_back(Type::from(token));
 							break;
+
+						case Keyword_Kind::Dynamic:
+							error_fatal(token, "Funciton cannot have type signature and be dynamic at the same time. (`dyn` inside type specification)");
+							break;
+
 						default:
-							ensure_fatal(j == 0, token, "Types can only be specified for functions");
+							ensure_fatal(false, token, "Types can only be specified for functions");
 							break;
 						}
 					}

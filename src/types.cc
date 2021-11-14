@@ -384,9 +384,13 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 
 		case Operation::Kind::Call_Symbol:
 			assert(op.word);
-			ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
-			typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
-			++s.ip;
+			if (op.word->is_dynamically_typed) {
+				assert_msg(false, "Typechecking dynamically typed functions is not implemented yet");
+			} else {
+				ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
+				typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
+				++s.ip;
+			}
 			break;
 
 		case Operation::Kind::Return:

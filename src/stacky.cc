@@ -247,6 +247,9 @@ auto main(int argc, char **argv) -> int
 			if (word.kind != Word::Kind::Function)
 				continue;
 
+			if (word.is_dynamically_typed)
+				continue;
+
 			if (!word.has_effect) {
 				warning("function `{}` without type signature"_format(name));
 				continue;

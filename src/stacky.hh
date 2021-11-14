@@ -257,6 +257,8 @@ struct Word
 
 	bool has_effect = false;
 	Stack_Effect effect;
+	bool is_dynamically_typed = false;
+
 	Location location;
 	std::string_view function_name;
 };
