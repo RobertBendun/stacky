@@ -3,6 +3,7 @@
 #include <numeric>
 #include <concepts>
 #include <ranges>
+#include <cmath>
 
 Type Type::from(Token const& token)
 {
@@ -57,7 +58,8 @@ struct State
 
 auto make_expected_output_verifier(auto output)
 {
-	return [output](auto const &s) {
+	// TODO use this location
+	return [output](auto const &s, [[maybe_unused]] auto &&location) {
 		auto const excess_data = [&](auto start) {
 			error(s.stack.back().location, "Excess data on stack");
 			info(s.stack.back().location, "List of all excess data introductions: ");
@@ -282,6 +284,33 @@ namespace Type_DSL
 	}
 }
 
+auto dynamic_function_call_output_verifier(State &caller)
+{
+	struct Closure
+	{
+		void operator()(State&& callee, Location location)
+		{
+			assert(caller);
+			if (!received_output) {
+				output_introduced = location;
+				caller->stack = std::move(callee.stack);
+				received_output = true;
+				return;
+			}
+			assert_msg(false, "Output verification for dynamic functions not implemented yet");
+		}
+
+		State *caller;
+		bool received_output = false;
+		Location output_introduced;
+	};
+
+	Closure closure = {};
+	closure.caller = &caller;
+
+	return closure;
+}
+
 #define Typecheck_Stack_Effect(s, ...) \
 	do { \
 		static constexpr auto SE = std::tuple { __VA_ARGS__ }; \
@@ -294,7 +323,7 @@ void typecheck(
 		[[maybe_unused]] Generation_Info &geninfo,
 		std::vector<Operation> const& ops,
 		Typestack &&initial_typestack,
-		auto const& verify_output)
+		auto&& verify_output)
 {
 	using namespace Type_DSL;
 
@@ -307,7 +336,8 @@ void typecheck(
 		if (s.ip >= ops.size()) {
 		// It's the same for `return` operation and end of ops
 		ops_end:
-			verify_output(s);
+			auto ip = s.ip;
+			verify_output(std::move(s), ops[std::min(ip, (unsigned)ops.size() - 1)].location);
 			states.pop_back();
 			continue;
 		}
@@ -378,7 +408,9 @@ void typecheck(
 		case Operation::Kind::Call_Symbol:
 			assert(op.word);
 			if (op.word->is_dynamically_typed) {
-				assert_msg(false, "Typechecking dynamically typed functions is not implemented yet");
+				auto copy = s.stack;
+				typecheck(geninfo, op.word->function_body, std::move(copy), dynamic_function_call_output_verifier(s));
+				++s.ip;
 			} else {
 				ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
 				typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
