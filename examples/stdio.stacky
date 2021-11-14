@@ -2,15 +2,15 @@ Stdout-Buffer-Size  1024               constant
 Stdout-Buffer       Stdout-Buffer-Size []byte
 Stdout-Buffer-Count 8                  []byte
 
-exit fun 0 60 syscall1 end
+exit fun is 0 60 syscall1 end
 
-flush fun
+flush fun is
 	Stdout-Buffer-Count load64 Stdout-Buffer 1 1 syscall3
 	Stdout-Buffer-Count 0 store64
 end
 
 # Write buffered. Flushes on either filled buffer or '\n'
-write fun # ( cstr -- )
+write fun ptr -- is
 	# s
 	while dup load8 0 != do
 		Stdout-Buffer-Count load64 dup 1 +
