@@ -49,68 +49,56 @@ auto Stack_Effect::string() const -> std::string
 	return stack_effect_string(*this);
 }
 
-void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&typestack, Typestack const& expected);
-
-void typecheck(Generation_Info &geninfo, Word const& word)
-{
-	auto copy = word.effect.input;
-	typecheck(geninfo, word.function_body, std::move(copy), word.effect.output);
-}
-
-void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops)
-{
-	typecheck(geninfo, ops, {}, {});
-}
-
 struct State
 {
 	Typestack      stack;
-	Typestack_View output;
 	unsigned       ip = 0;
 };
 
-void verify_output(State const& s)
+auto make_expected_output_verifier(auto output)
 {
-	auto const excess_data = [&](auto start) {
-		error(s.stack.back().location, "Excess data on stack");
-		info(s.stack.back().location, "List of all excess data introductions: ");
-		for (auto it = start; it != s.stack.rend(); ++it) {
-			info(it->location, "value of type `{}`"_format(type_name(*it)));
+	return [output](auto const &s) {
+		auto const excess_data = [&](auto start) {
+			error(s.stack.back().location, "Excess data on stack");
+			info(s.stack.back().location, "List of all excess data introductions: ");
+			for (auto it = start; it != s.stack.rend(); ++it) {
+				info(it->location, "value of type `{}`"_format(type_name(*it)));
+			}
+			exit(1);
+		};
+
+		auto const missing_data = [&](auto start) {
+			// TODO we don't report location here
+			error("Missing data from stack");
+			info("List of all missing data");
+			for (auto it = start; it != output.rend(); ++it) {
+				info(it->location, "value of type `{}`"_format(type_name(*it)));
+			}
+			exit(1);
+		};
+
+		switch (s.stack.empty() << 1 | output.empty()) {
+		case 0b11: // stack empty, output empty
+			return;
+		case 0b01: // stack non-empty, output empty
+			excess_data(s.stack.rbegin());
+			break;
+		case 0b10: // stack empty, output non-empty
+			missing_data(output.rbegin());
+			break;
+		case 0b00: // stack non-empty, output non-empty
+			{
+				auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), output.rbegin(), output.rend());
+				if (stk == s.stack.rend() && exp == output.rend())
+					return;
+
+				if (exp == output.rend())
+					excess_data(stk);
+				missing_data(exp);
+			}
+			break;
 		}
-		exit(1);
 	};
-
-	auto const missing_data = [&](auto start) {
-		// TODO we don't report location here
-		error("Missing data from stack");
-		info("List of all missing data");
-		for (auto it = start; it != s.output.rend(); ++it) {
-			info(it->location, "value of type `{}`"_format(type_name(*it)));
-		}
-		exit(1);
-	};
-
-	switch (s.stack.empty() << 1 | s.output.empty()) {
-	case 0b11: // stack empty, output empty
-		return;
-	case 0b01: // stack non-empty, output empty
-		excess_data(s.stack.rbegin());
-		break;
-	case 0b10: // stack empty, output non-empty
-		missing_data(s.output.rbegin());
-		break;
-	case 0b00: // stack non-empty, output non-empty
-		{
-			auto [stk, exp] = std::mismatch(s.stack.rbegin(), s.stack.rend(), s.output.rbegin(), s.output.rend());
-			if (stk == s.stack.rend() && exp == s.output.rend())
-				return;
-
-			if (exp == s.output.rend())
-				excess_data(stk);
-			missing_data(exp);
-		}
-		break;
-	}
 }
 
 template<typename Eff>
@@ -301,12 +289,17 @@ namespace Type_DSL
 		++s.ip; \
 	} while(0)
 
-void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> const& ops, Typestack &&initial_typestack, Typestack const& expected)
+
+void typecheck(
+		[[maybe_unused]] Generation_Info &geninfo,
+		std::vector<Operation> const& ops,
+		Typestack &&initial_typestack,
+		auto const& verify_output)
 {
 	using namespace Type_DSL;
 
 	std::unordered_map<decltype(State::ip), State> visited_do_ops;
-	std::vector<State> states = { State { std::move(initial_typestack), std::span(expected), 0 } };
+	std::vector<State> states = { State { std::move(initial_typestack), 0 } };
 
 	while (!states.empty()) {
 		auto& s = states.back();
@@ -343,7 +336,7 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 			{
 				Typecheck_Stack_Effect(s, Bool >= Empty);
 				assert(op.jump != Operation::Empty_Jump);
-				states.push_back(State { s.stack, s.output, op.jump });
+				states.push_back(State { s.stack, op.jump });
 			}
 			break;
 
@@ -521,10 +514,17 @@ void typecheck([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation>
 				}
 			}
 			break;
-#if 0
-		default:
-			unreachable("unimplemented");
-#endif
 		}
 	}
+}
+
+void typecheck(Generation_Info &geninfo, Word const& word)
+{
+	auto copy = word.effect.input;
+	typecheck(geninfo, word.function_body, std::move(copy), make_expected_output_verifier(std::span(word.effect.output)));
+}
+
+void typecheck(Generation_Info &geninfo, std::vector<Operation> const& ops)
+{
+	typecheck(geninfo, ops, {}, make_expected_output_verifier(std::span<Type>{}));
 }
