@@ -92,6 +92,12 @@ namespace optimizer
 
 					if (condition.ival != 0) {
 						assert(function_body[branch.jump-1].kind == Operation::Kind::End);
+
+						if (std::cbegin(function_body) + branch.jump != std::end(function_body)) {
+							warning(function_body[branch.jump].location, "Dead code: Loop is infinite");
+							info(function_body[condition_op-1].location, "Infinite loop introduced here");
+						}
+
 						function_body.erase(std::cbegin(function_body) + branch.jump, std::end(function_body));
 						function_body.erase(std::cbegin(function_body) + condition_op, std::cbegin(function_body) + branch_op + 1);
 						remap(branch_op+1, end_op, 3);
