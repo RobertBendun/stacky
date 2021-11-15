@@ -5,6 +5,31 @@
 #include <ranges>
 #include <cmath>
 
+struct State
+{
+	Typestack      stack;
+	unsigned       ip = 0;
+};
+
+template<typename Eff>
+concept Effect = requires (Eff effect)
+{
+	{ effect.input } -> std::ranges::random_access_range;
+	{ effect.output } -> std::ranges::random_access_range;
+
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.input)>, Type>;
+	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.output)>, Type>;
+};
+
+template<typename Effs>
+concept Effects = requires (Effs effects, unsigned i)
+{
+	{ effects[i] }      -> Effect;
+	{ effects.size() }  -> std::convertible_to<unsigned>;
+	{ effects.begin() } -> std::forward_iterator;
+	{ effects.end() }   -> std::forward_iterator;
+};
+
 Type Type::from(Token const& token)
 {
 	assert(token.kind == Token::Kind::Keyword && token.kval == Keyword_Kind::Typename);
@@ -49,12 +74,6 @@ auto Stack_Effect::string() const -> std::string
 {
 	return stack_effect_string(*this);
 }
-
-struct State
-{
-	Typestack      stack;
-	unsigned       ip = 0;
-};
 
 auto make_expected_output_verifier(auto output)
 {
@@ -102,25 +121,6 @@ auto make_expected_output_verifier(auto output)
 		}
 	};
 }
-
-template<typename Eff>
-concept Effect = requires (Eff effect)
-{
-	{ effect.input } -> std::ranges::random_access_range;
-	{ effect.output } -> std::ranges::random_access_range;
-
-	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.input)>, Type>;
-	requires std::is_same_v<std::ranges::range_value_t<decltype(effect.output)>, Type>;
-};
-
-template<typename Effs>
-concept Effects = requires (Effs effects, unsigned i)
-{
-	{ effects[i] }      -> Effect;
-	{ effects.size() }  -> std::convertible_to<unsigned>;
-	{ effects.begin() } -> std::forward_iterator;
-	{ effects.end() }   -> std::forward_iterator;
-};
 
 
 void typecheck_stack_effects(State& state, Effects auto const& effects, Location const& loc, std::string_view operation_name)
@@ -297,7 +297,27 @@ auto dynamic_function_call_output_verifier(State &caller)
 				received_output = true;
 				return;
 			}
-			assert_msg(false, "Output verification for dynamic functions not implemented yet");
+
+			auto const eend = caller->stack.rend();
+			auto const aend = callee.stack.rend();
+			auto [e, a] = std::mismatch(caller->stack.rbegin(), eend, callee.stack.rbegin(), aend);
+
+			switch (((e == eend) << 1) | (a == aend)) {
+			case 0b11:
+				return;
+
+			case 0b10:
+				assert_msg(false, "Output verification: excess data on actual stack");
+				break;
+
+			case 0b01:
+				assert_msg(false, "Output verification: missing data from actual stack");
+				break;
+
+			case 0b00:
+				assert_msg(false, "Output verification: incomatible types");
+				break;
+			}
 		}
 
 		State *caller;
