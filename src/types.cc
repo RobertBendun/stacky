@@ -4,12 +4,15 @@
 #include <concepts>
 #include <ranges>
 #include <cmath>
+#include <functional>
 
 struct State
 {
 	Typestack      stack;
 	unsigned       ip = 0;
 };
+
+using Output_Verifier = std::function<void(State&, Location)>;
 
 template<typename Eff>
 concept Effect = requires (Eff effect)
@@ -74,6 +77,7 @@ auto Stack_Effect::string() const -> std::string
 {
 	return stack_effect_string(*this);
 }
+
 
 auto make_expected_output_verifier(auto output)
 {
@@ -295,32 +299,14 @@ auto dynamic_function_call_output_verifier(State &caller)
 				output_introduced = location;
 				caller->stack = std::move(callee.stack);
 				received_output = true;
+				ov = make_expected_output_verifier(caller->stack);
 				return;
 			}
-
-			auto const eend = caller->stack.rend();
-			auto const aend = callee.stack.rend();
-			auto [e, a] = std::mismatch(caller->stack.rbegin(), eend, callee.stack.rbegin(), aend);
-
-			switch (((e == eend) << 1) | (a == aend)) {
-			case 0b11:
-				return;
-
-			case 0b10:
-				assert_msg(false, "Output verification: excess data on actual stack");
-				break;
-
-			case 0b01:
-				assert_msg(false, "Output verification: missing data from actual stack");
-				break;
-
-			case 0b00:
-				assert_msg(false, "Output verification: incomatible types");
-				break;
-			}
+			ov(callee, location);
 		}
 
 		State *caller;
+		Output_Verifier ov;
 		bool received_output = false;
 		Location output_introduced;
 	};
