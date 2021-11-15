@@ -1,6 +1,6 @@
 "io" import
 
-switch fun
+switch fun dyn
 	while dup 0 > do
 		swap 2swap rot swap over =
 		if
@@ -22,14 +22,14 @@ end
 
 20 30 '+'
 
-&fun
+&fun u64 u64 -- u64 is
 	2drop
 	"Matching operator not found" print
-	1 exit
+	1 exit 0
 end swap
-&fun +   end '+' rot
-&fun -   end '-' rot
-&fun *   end '*' rot
-&fun div end '/' rot
+&fun u64 u64 -- u64 is +   end '+' rot
+&fun u64 u64 -- u64 is -   end '-' rot
+&fun u64 u64 -- u64 is *   end '*' rot
+&fun u64 u64 -- u64 is div end '/' rot
 4
 switch .
