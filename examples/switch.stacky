@@ -24,7 +24,7 @@ end
 
 &fun u64 u64 -- u64 is
 	2drop
-	"Matching operator not found" print
+	"Matching operator not found" puts
 	1 exit 0
 end swap
 &fun u64 u64 -- u64 is +   end '+' rot

@@ -10,4 +10,4 @@ Hello Hello-Count []byte
 	1 +
 end 2drop
 
-Hello println
+Hello puts nl

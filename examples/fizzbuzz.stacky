@@ -4,11 +4,11 @@ printed 1 []byte
 1 while dup 100 != do
 	printed 1 store8
 	dup	3 mod 0 = if
-		"fizz" print
+		"fizz" puts
 		printed 0 store8
 	end
 	dup 5 mod 0 = if
-		"buzz" print
+		"buzz" puts
 		printed 0 store8
 	end
 

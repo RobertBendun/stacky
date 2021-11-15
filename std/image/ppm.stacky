@@ -1,0 +1,17 @@
+"io" import
+"posix" import
+
+# filename pixels width height
+# width height fd pixels
+save_ppm fun u64 u64 ptr ptr -- bool is
+	0o644
+	swap
+	O_CREAT O_WRONLY bit-or O_TRUNC bit-or
+	swap
+	AT_FDCWD
+	SYS_openat syscall4 dup 0 < if
+		false return
+	end
+
+	# 2swap * rot while
+end

@@ -9,15 +9,10 @@ space fun is
 	' ' top 1 swap stdout SYS_write syscall3 drop drop
 end
 
-print fun ptr -- is
+puts fun ptr -- is
 	dup
 	dup while dup load8 0 != do 1 + end swap - # strlen
 	swap stdout SYS_write syscall3 drop # Print string
-end
-
-println fun ptr -- is
-	print
-	nl
 end
 
 digits10 fun u64 -- u64 is
@@ -33,7 +28,7 @@ end
 
 Print_Buffer Max_Digits10 []byte
 
-print-int fun u64 -- is
+putu fun u64 -- is
 	dup digits10 tuck 1 - swap
 	while dup 10 >= do
 		over swap
@@ -49,7 +44,7 @@ print-int fun u64 -- is
 end
 
 # print int aligned to n characters to the right by ' '
-aprint-int fun u64 u64 -- is
+aputu fun u64 u64 -- is
 	over digits10
 	2dup > if
 		- while dup 0 > do
@@ -59,10 +54,7 @@ aprint-int fun u64 u64 -- is
 	else
 		2drop
 	end
-	print-int
+	putu
 end
 
-. fun u64 -- is
-	print-int
-	nl
-end
+. fun u64 -- is putu nl end

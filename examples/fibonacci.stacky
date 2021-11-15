@@ -25,7 +25,7 @@ fib fun u64 -- u64 is
 end
 
 0 while dup 10 < do
-	"recursive: "  print dup fib_rec 2 aprint-int
-	" iterative: " print dup fib     2 aprint-int nl
+	"recursive: "  puts dup fib_rec 2 aputu
+	" iterative: " puts dup fib     2 aputu nl
 	1 +
 end drop

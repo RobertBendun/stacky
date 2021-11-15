@@ -27,7 +27,7 @@ with some basic optimizations and good error reporting.
 # hello.stacky
 "io" import
 
-"hello, world" println
+"hello, world" puts nl
 ```
 
 ```console
@@ -35,21 +35,21 @@ $ stacky run hello.stacky
 hello, world
 ```
 
-### Print current date
+### puts current date
 ```
 # date.stacky
 "io"   import
 "time" import
 
-"Date is " print
+"Date is " puts
 
 now  # returns seconds in Unix time
 date # returns year, month, day, hours, minutes
-	   print-int "-" print
-	2 aprint-int "-" print
-	2 aprint-int " " print
-	2 aprint-int ":" print
-	2 aprint-int
+	   putu "-" puts
+	2 aputu "-" puts
+	2 aputu " " puts
+	2 aputu ":" puts
+	2 aputu nl
 ```
 
 ```console
@@ -66,7 +66,7 @@ Date is 2021-10-17 23:13
 Consumes top of the stack. If value was nonzero, executes if branch, otherwise else branch.
 ```
 "io" import
-10 if "value is 10!" else "value is not 10 :c" end println
+10 if "value is 10!" else "value is not 10 :c" end puts nl
 ```
 
 #### while ... do ... end
@@ -74,7 +74,7 @@ Consumes top of the stack. If value was nonzero, executes if branch, otherwise e
 While condition part (between `while` and `do`) is nonzero, executes repeatadly loop part (between `do` and `end`).
 
 ```
-# Print numbers from 0 to 10
+# puts numbers from 0 to 10
 "io" import
 
 0 while dup 11 = ! do
@@ -90,7 +90,7 @@ end
 ```
 "io" import
 
-say-hello fun "Hi, " print print "!" println end
+say-hello fun "Hi, " puts puts "!\n" puts end
 
 "Mark" say-hello # prints "Hi, Mark!"
 ```
@@ -113,10 +113,9 @@ say-hello fun "Hi, " print print "!" println end
 - `uniform32` - `(a b -- n)` returns random integer `n` in range `[a, b]`
 
 #### io
-- `nl` - prints newline to stdout
-- `print` - `(pointer --)` - prints null terminated string to stdout
-- `println` - `(pointer --)` - prints null terminated string to stdout and after it newline
-- `.` - `(uint --)` - print unsigned integer to stdout with a newline at the end
+- `nl` - putss newline to stdout
+- `puts` - `(pointer --)` - prints null terminated string to stdout
+- `.` - `(uint --)` - puts unsigned integer to stdout with a newline at the end
 
 #### limits
 - `Max_Digits10` - `(-- uint)` - returns maximum number of decimal digits that unsigned integer may have

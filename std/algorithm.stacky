@@ -16,10 +16,10 @@ end
 
 print-array32 fun u64 ptr -- is
 	begin-end-32
-	"[ " print
+	"[ " puts
 	while 2dup != do
-		dup load32 print-int " " print
+		dup load32 putu " " puts
 		4 +
 	end 2drop
-	"]" println
+	"]" puts nl
 end

@@ -816,7 +816,7 @@ max_row 1 []u64
 last 1 []byte
 
 clear-screen fun is
-	"\x1b[?25h\x1b[0m\x1b[H\x1b[2J" print
+	"\x1b[?25h\x1b[0m\x1b[H\x1b[2J" puts
 end
 
 colors ','  8 * + "\x1b[104m" store64 # Blue background
@@ -844,7 +844,7 @@ min_row Frame_Height winsize winsize.ws_row + load16 1 - - 2 div store64
 max_row Frame_Height winsize winsize.ws_row + load16 1 - + 2 div store64
 
 min_col load64 1000 > if
-	"To implement this resolution Stacky needs support for signed integers\nMake resolution smaller.\n" print
+	"To implement this resolution Stacky needs support for signed integers\nMake resolution smaller.\n" puts
 	return
 end
 
@@ -852,7 +852,7 @@ clear-screen
 
 0
 while true do
-	"\x1b[H" print
+	"\x1b[H" puts
 
 	# i y x
 	min_row load64 while dup max_row load64 < do
@@ -866,17 +866,17 @@ while true do
 
 			dup last load8 != over 8 * colors + load64 0 != and if
 				last over store8
-				8 * colors + load64 ptr print
+				8 * colors + load64 ptr puts
 			else
 				drop
 			end
-			"  " print
+			"  " puts
 
 			swap rot swap
 			1 +
 		end drop
 
-		"\n" print
+		"\n" puts
 		1 +
 	end drop
 

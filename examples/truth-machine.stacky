@@ -9,13 +9,13 @@ end
 Input 1 []byte
 
 1 Input stdin SYS_read syscall3 1 != if
-	"Expected 0 or 1" println
+	"Expected 0 or 1" puts nl
 	1 exit
 end
 
 Input load8
 dup '0' != over '1' != and if
-	"Expected 0 or 1" println
+	"Expected 0 or 1" puts nl
 	1 exit
 end
 
