@@ -1,8 +1,8 @@
 Examples=$(wildcard examples/**/*.stacky) $(wildcard examples/*.stacky)
 Compiled_Examples=$(basename $(Examples))
 
-Compiler=g++
-Options=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses
+CXX=g++
+CXXFLAGS=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses
 
 Objects=build/arguments.o \
 				build/lexer.o \
@@ -22,10 +22,10 @@ build:
 	mkdir -p build
 
 stacky: src/stacky.cc $(Objects) src/stacky.hh src/errors.hh src/enum-names.cc
-	$(Compiler) $(Options) $< -o $@ -O3 -lboost_program_options -lfmt $(Objects)
+	$(CXX) $(CXXFLAGS) $< -o $@ -O3 -lboost_program_options -lfmt $(Objects)
 
 build/%.o: src/%.cc src/stacky.hh src/errors.hh | build
-	$(Compiler) $(Options) $< -o $@ -c -O3
+	$(CXX) $(CXXFLAGS) $< -o $@ -c -O3
 
 # ------------ C++ CODE GENERATION ------------
 
