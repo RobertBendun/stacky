@@ -5,6 +5,9 @@ stderr 2 constant
 CLOCK_REALTIME  0 constant
 CLOCK_MONOTONIC 1 constant
 
+ORDONLY      0o0          constant
+OWRONLY      0o1          constant
+ORDWR        0o2          constant
 OCREAT       0o100        constant
 OEXCL        0o200        constant
 ONOCTTY      0o400        constant
@@ -23,6 +26,7 @@ OLARGEFILE   0            constant
 ONOATIME     0o1000000    constant
 OPATH        0o10000000   constant
 OTMPFILE     0o20200000   constant
+AT_FDCWD     18446744073709551516 constant # -100 as unsigned
 
 SYS_read                     0     constant
 SYS_write                    1     constant
