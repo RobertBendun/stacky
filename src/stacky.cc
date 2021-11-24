@@ -18,6 +18,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <os-exec.hh>
 #include <fmt/core.h>
 #include <fmt/format.h>
 
@@ -142,6 +143,15 @@ void generate_jump_targets_lookup(Generation_Info &geninfo)
 		if (def.kind != Word::Kind::Function) continue;
 		generate_jump_targets_lookup(geninfo, def.function_body, name);
 	}
+}
+
+auto cmd(auto const& ...args)
+{
+	if (compiler_arguments.verbose) {
+		report_prefix(Report::Command);
+		return os_exec::run_echo(args...);
+	} else
+		return os_exec::run(args...);
 }
 
 auto main(int argc, char **argv) -> int
@@ -270,18 +280,14 @@ auto main(int argc, char **argv) -> int
 	if (compiler_arguments.control_flow_graph)
 		generate_control_flow_graph(geninfo, compiler_arguments.control_flow, compiler_arguments.control_flow_function);
 
-	{
-		std::stringstream ss;
-		ss << "nasm -felf64 " << compiler_arguments.assembly;
-		system(ss.str().c_str());
+	if (auto const error = cmd("nasm", "-felf64", compiler_arguments.assembly); error) {
+		error_fatal("failed to assemble: nasm: {}"_format(error.message()));
 	}
 
 	auto obj_path = compiler_arguments.executable;
 	obj_path += ".o";
-	{
-		std::stringstream ss;
-		ss << "ld -o " << compiler_arguments.executable << " " << obj_path;
-		system(ss.str().c_str());
+	if (auto const error = cmd("ld", "-o", compiler_arguments.executable, obj_path); error) {
+		error_fatal("failed to link: ld: {}"_format(error.message()));
 	}
 
 	if (compiler_arguments.run_mode) {

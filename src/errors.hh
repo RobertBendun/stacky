@@ -70,6 +70,12 @@ inline void report(Report r, Locationable auto const& loc, auto const& m)
 	fmt::print(stderr, "{}:{}:{}: {}: {}\n", loc.file, loc.line, loc.column, report_kind_str(r), m);
 }
 
+inline void report_prefix(Report r)
+{
+	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
+	fmt::print(stderr, "stacky: {}: ", report_kind_str(r));
+}
+
 inline void report(Report r, auto const& m)
 {
 	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;

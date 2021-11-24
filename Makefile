@@ -2,7 +2,7 @@ Examples=$(wildcard examples/**/*.stacky) $(wildcard examples/*.stacky)
 Compiled_Examples=$(basename $(Examples))
 
 CXX=g++
-CXXFLAGS=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses
+CXXFLAGS=-std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/
 
 Objects=build/arguments.o \
 				build/lexer.o \

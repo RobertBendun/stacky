@@ -2,46 +2,46 @@
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/arguments.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/arguments.cc -o build/arguments.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/arguments.cc -o build/arguments.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/lexer.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/lexer.cc -o build/lexer.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/lexer.cc -o build/lexer.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/unicode.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/unicode.cc -o build/unicode.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/unicode.cc -o build/unicode.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/parser.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/parser.cc -o build/parser.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/parser.cc -o build/parser.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/linux-x86_64.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/linux-x86_64.cc -o build/linux-x86_64.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/linux-x86_64.cc -o build/linux-x86_64.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/optimizer.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/optimizer.cc -o build/optimizer.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/optimizer.cc -o build/optimizer.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/debug.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/debug.cc -o build/debug.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/debug.cc -o build/debug.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/types.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/types.cc -o build/types.o -c -O3"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/types.cc -o build/types.o -c -O3"
   },
   {
     "directory": "/home/robert/dev/stacky",
     "file": "src/stacky.cc",
-    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses src/stacky.cc -o stacky -O3 -lboost_program_options -lfmt build/arguments.o build/lexer.o build/unicode.o build/parser.o build/linux-x86_64.o build/optimizer.o build/debug.o build/types.o"
+    "command": "g++ -std=c++20 -Wall -Wextra -Werror=switch -Wno-parentheses -Isrc/os-exec/ src/stacky.cc -o stacky -O3 -lboost_program_options -lfmt build/arguments.o build/lexer.o build/unicode.o build/parser.o build/linux-x86_64.o build/optimizer.o build/debug.o build/types.o"
   }
 ]
