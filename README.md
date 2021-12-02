@@ -1,25 +1,16 @@
 # stacky
 
-**WIP** stack-based compiled concatenative programming language.
+**WIP** stack-based compiled concatenative programming language. 
 
-Currently it's somewhere between [B](https://en.wikipedia.org/wiki/B_(programming_language)) and [C](https://en.wikipedia.org/wiki/C_(programming_language)) programming languages in universe where B was stack based concatenative language.
+**Currently is developement is postponed, due to other projects (and university) with higher priority.**
 
-## Goals
+It's somewhere between [B](https://en.wikipedia.org/wiki/B_(programming_language)) and [C](https://en.wikipedia.org/wiki/C_(programming_language)) programming languages in universe where B was stack based concatenative language.
 
-In mostly random order:
-- [x] Easy to expand with new keywords and intrinsics
-- [x] Turing complete
-- [ ] Static type system (currently beeing developed)
-- [ ] Ability to target OS-less enviroment (and maybe even write bootloader in pure Stacky or use [Multiboot](https://www.gnu.org/software/grub/manual/multiboot/multiboot.html) standard)
-- [ ] (Limited) Compile time code execution
-- [ ] Multiplatform (in probability of implementing order from higher to lower)
-	- [x] Linux x86-64
-	- [ ] Linux ARM
-	- [ ] Linux LLVM
-	- [ ] WebAssembly
-- [ ] Ability to interact with C code (but not depending on it) (WIP for signals support)
+## Features
 
-with some basic optimizations and good error reporting.
+- Turing completness
+- Optional type checking
+- Low level OS access ability
 
 ## Example
 ### hello, world
