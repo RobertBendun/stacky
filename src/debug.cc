@@ -6,15 +6,15 @@
 void generate_control_flow_graph(Generation_Info const& geninfo, fs::path dot_path, std::string const& function)
 {
 	std::ofstream out(dot_path);
-	ensure_fatal(bool(out), "Could not create file `{}`."_format(dot_path.c_str()));
+	ensure_fatal(bool(out), fmt::format("Could not create file `{}`.", dot_path.c_str()));
 
 	auto const& function_body = [&]() -> auto const& {
 		if (function.empty())
 			return geninfo.main;
 		auto maybe_function = geninfo.words.find(function);
-		ensure_fatal(maybe_function != std::end(geninfo.words), "Word `{}` has not been defined"_format(function));
+		ensure_fatal(maybe_function != std::end(geninfo.words), fmt::format("Word `{}` has not been defined", function));
 		ensure_fatal(maybe_function->second.kind == Word::Kind::Function,
-			"`{}` is not a function (control graph can only be generated for functions)"_format(function));
+			fmt::format("`{}` is not a function (control graph can only be generated for functions)", function));
 		return maybe_function->second.function_body;
 	}();
 

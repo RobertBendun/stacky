@@ -63,14 +63,14 @@ auto type_name(Type const& type) -> std::string
 template <> struct fmt::formatter<Type> : fmt::formatter<std::string> {
   // parse is inherited from formatter<string_view>.
   template <typename FormatContext>
-  auto format(Type const& t, FormatContext& ctx) {
+  auto format(Type const& t, FormatContext& ctx) const {
     return formatter<std::string>::format(type_name(t), ctx);
   }
 };
 
 auto stack_effect_string(auto const& stack_effect)
 {
-	return "{} -- {}"_format(fmt::join(stack_effect.input, " "), fmt::join(stack_effect.output, " "));
+	return fmt::format("{} -- {}", fmt::join(stack_effect.input, " "), fmt::join(stack_effect.output, " "));
 }
 
 auto Stack_Effect::string() const -> std::string
@@ -87,7 +87,7 @@ auto make_expected_output_verifier(auto output)
 			error(s.stack.back().location, "Excess data on stack");
 			info(s.stack.back().location, "List of all excess data introductions: ");
 			for (auto it = start; it != s.stack.rend(); ++it) {
-				info(it->location, "value of type `{}`"_format(type_name(*it)));
+				info(it->location, fmt::format("value of type `{}`", type_name(*it)));
 			}
 			exit(1);
 		};
@@ -97,7 +97,7 @@ auto make_expected_output_verifier(auto output)
 			error("Missing data from stack");
 			info("List of all missing data");
 			for (auto it = start; it != output.rend(); ++it) {
-				info(it->location, "value of type `{}`"_format(type_name(*it)));
+				info(it->location, fmt::format("value of type `{}`", type_name(*it)));
 			}
 			exit(1);
 		};
@@ -146,7 +146,7 @@ void typecheck_stack_effects(State& state, Effects auto const& effects, Location
 	});
 
 	if (minumum_number_of_arguments != 0 && state.stack.size() < minumum_number_of_arguments) {
-		error_fatal(loc, "`{}` requires miniumum {} argument{} on the stack"_format(operation_name, minumum_number_of_arguments, minumum_number_of_arguments > 1 ? "s" : ""));
+		error_fatal(loc, fmt::format("`{}` requires miniumum {} argument{} on the stack", operation_name, minumum_number_of_arguments, minumum_number_of_arguments > 1 ? "s" : ""));
 	}
 
 	for (unsigned effect_id = 0; effect_id < effects.size(); ++effect_id) {
@@ -203,24 +203,24 @@ void typecheck_stack_effects(State& state, Effects auto const& effects, Location
 	auto const best_match_score = *std::max_element(matching.begin(), matching.end());
 
 	// TODO operation name
-	error(loc, "Invalid stack state for operation `{}`"_format(operation_name));
+	error(loc, fmt::format("Invalid stack state for operation `{}`", operation_name));
 	unsigned last_effect_id = -1;
 	for (auto const& err : deffered_errors) {
 		if (matching[err.effect_id] != best_match_score)
 			continue;
 
 		if (effects.size() != 1 && last_effect_id != err.effect_id) {
-			info("error trying to match: {}"_format(stack_effect_string(effects[err.effect_id])));
+			info(fmt::format("error trying to match: {}", stack_effect_string(effects[err.effect_id])));
 			last_effect_id = err.effect_id;
 		}
 
 		switch (err.kind) {
 		case Error::Missing:
-			info(loc, "missing value of type `{}`"_format(type_name(err.effect)));
+			info(loc, fmt::format("missing value of type `{}`", type_name(err.effect)));
 			break;
 
 		case Error::Different_Types:
-			info(err.state.location, "expected value of type `{}`. Found `{}`"_format(type_name(err.effect), type_name(err.state)));
+			info(err.state.location, fmt::format("expected value of type `{}`. Found `{}`", type_name(err.effect), type_name(err.state)));
 			break;
 		}
 	}
@@ -418,7 +418,7 @@ void typecheck(
 				typecheck(geninfo, op.word->function_body, std::move(copy), dynamic_function_call_output_verifier(s));
 				++s.ip;
 			} else {
-				ensure_fatal(op.word->has_effect, op.token, "cannot typecheck word `{}` without stack effect"_format(op.sval));
+				ensure_fatal(op.word->has_effect, op.token, fmt::format("cannot typecheck word `{}` without stack effect", op.sval));
 				typecheck_stack_effects(s, std::array { op.word->effect }, op.location, op.word->function_name);
 				++s.ip;
 			}

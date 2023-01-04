@@ -31,6 +31,7 @@
 #include <iostream>
 #include <string_view>
 #include <system_error>
+#include <algorithm>
 
 #include <sys/mman.h>
 #include <sys/wait.h>

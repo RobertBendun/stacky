@@ -324,7 +324,7 @@ namespace linux::x86_64 {
 	{
 		std::ofstream asm_file(asm_path, std::ios_base::out | std::ios_base::trunc);
 		if (!asm_file) {
-			error("Cannot generate ASM file {}"_format(asm_path.c_str()));
+			error(fmt::format("Cannot generate ASM file {}", asm_path.c_str()));
 			return;
 		}
 

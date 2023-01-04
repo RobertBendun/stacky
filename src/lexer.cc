@@ -145,7 +145,7 @@ bool lex(std::string_view const file, std::string_view const path, std::vector<T
 			token.kind = ch == '"' ? Token::Kind::String : Token::Kind::Char;
 
 			if (i + 1 > file.size())
-				error_fatal(token, "Missing terminating `{}` character"_format(ch));
+				error_fatal(token, fmt::format("Missing terminating `{}` character", ch));
 
 			if (file[i+1] == ch) {
 				if (ch == '\'') error_fatal(token, "Empty character literals are invalid");
@@ -156,7 +156,7 @@ bool lex(std::string_view const file, std::string_view const path, std::vector<T
 				});
 
 				if (str_end == std::cend(file))
-					error_fatal(token, "Missing terminating `{}` character."_format(ch));
+					error_fatal(token, fmt::format("Missing terminating `{}` character.", ch));
 				else
 					token.sval = { std::cbegin(file) + i, str_end + 2 };
 			}

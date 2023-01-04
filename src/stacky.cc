@@ -165,7 +165,7 @@ auto main(int argc, char **argv) -> int
 		std::ifstream file_stream(path);
 
 		if (!file_stream) {
-			error("Source file '{}' cannot be opened"_format(path));
+			error(fmt::format("Source file '{}' cannot be opened", path));
 			return 1;
 		}
 		std::string file{std::istreambuf_iterator<char>(file_stream), {}};
@@ -197,7 +197,7 @@ auto main(int argc, char **argv) -> int
 		auto maybe_included = search_include_path(includer_path, included_path);
 
 		if (!maybe_included) {
-			error_fatal(tokens[offset + 1], "Cannot find file {}"_format(included_path.c_str()));
+			error_fatal(tokens[offset + 1], fmt::format("Cannot find file {}", included_path.c_str()));
 			continue;
 		}
 
@@ -214,7 +214,7 @@ auto main(int argc, char **argv) -> int
 
 		std::ifstream file_stream(path);
 		if (!file_stream) {
-			error(tokens[offset + 1], "File {} cannot be opened"_format(path.c_str()));
+			error(tokens[offset + 1], fmt::format("File {} cannot be opened", path.c_str()));
 			return 1;
 		}
 
@@ -261,7 +261,7 @@ auto main(int argc, char **argv) -> int
 				continue;
 
 			if (!word.has_effect) {
-				warning("function `{}` without type signature"_format(name));
+				warning(fmt::format("function `{}` without type signature", name));
 				continue;
 			}
 
@@ -281,13 +281,13 @@ auto main(int argc, char **argv) -> int
 		generate_control_flow_graph(geninfo, compiler_arguments.control_flow, compiler_arguments.control_flow_function);
 
 	if (auto const error = cmd("nasm", "-felf64", compiler_arguments.assembly); error) {
-		error_fatal("failed to assemble: nasm: {}"_format(error.message()));
+		error_fatal(fmt::format("failed to assemble: nasm: {}", error.message()));
 	}
 
 	auto obj_path = compiler_arguments.executable;
 	obj_path += ".o";
 	if (auto const error = cmd("ld", "-o", compiler_arguments.executable, obj_path); error) {
-		error_fatal("failed to link: ld: {}"_format(error.message()));
+		error_fatal(fmt::format("failed to link: ld: {}", error.message()));
 	}
 
 	if (compiler_arguments.run_mode) {
