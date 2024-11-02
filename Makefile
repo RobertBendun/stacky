@@ -22,7 +22,7 @@ build:
 	mkdir -p build
 
 stacky: src/stacky.cc $(Objects) src/stacky.hh src/errors.hh src/enum-names.cc
-	$(CXX) $(CXXFLAGS) $< -o $@ -O3 -lboost_program_options -lfmt $(Objects)
+	$(CXX) $(CXXFLAGS) $< -o $@ -O3 -lboost_program_options $(Objects)
 
 build/%.o: src/%.cc src/stacky.hh src/errors.hh | build
 	$(CXX) $(CXXFLAGS) $< -o $@ -c -O3

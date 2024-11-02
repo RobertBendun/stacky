@@ -56,8 +56,8 @@ namespace optimizer
 			return !used_strings.contains(entry.second);
 		});
 
-		if (removed_words > 0)   verbose(fmt::format("Removed {} functions and arrays", removed_words));
-		if (removed_strings > 0) verbose(fmt::format("Removed {} strings", removed_strings));
+		if (removed_words > 0)   verbose(std::format("Removed {} functions and arrays", removed_words));
+		if (removed_strings > 0) verbose(std::format("Removed {} strings", removed_strings));
 
 		return removed_words + removed_strings;
 	}

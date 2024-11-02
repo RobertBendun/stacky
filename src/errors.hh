@@ -2,9 +2,8 @@
 
 #include "arguments.hh"
 #include <source_location>
-#include <fmt/core.h>
-#include <fmt/format.h>
-using namespace fmt::literals;
+#include <format>
+#include <iostream>
 
 template<typename Location>
 concept Locationable = requires (Location const& loc) {
@@ -67,19 +66,19 @@ inline std::string_view report_kind_str(Report r)
 inline void report(Report r, Locationable auto const& loc, auto const& m)
 {
 	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
-	fmt::print(stderr, "{}:{}:{}: {}: {}\n", loc.file, loc.line, loc.column, report_kind_str(r), m);
+	std::cerr << std::format("{}:{}:{}: {}: {}\n", loc.file, loc.line, loc.column, report_kind_str(r), m);
 }
 
 inline void report_prefix(Report r)
 {
 	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
-	fmt::print(stderr, "stacky: {}: ", report_kind_str(r));
+	std::cerr << std::format("stacky: {}: ", report_kind_str(r));
 }
 
 inline void report(Report r, auto const& m)
 {
 	Compilation_Failed |= r == Report::Error || r == Report::Compiler_Bug;
-	fmt::print(stderr, "stacky: {}: {}\n", report_kind_str(r), m);
+	std::cerr << std::format("stacky: {}: {}\n", report_kind_str(r), m);
 }
 
 inline void report(Report r, Has_Location_Field auto const& s, auto const& ...message)
@@ -126,7 +125,7 @@ inline void assert_impl(bool test, std::string_view test_str, std::source_locati
 {
 	if (test) return;
 
-	fmt::print(stderr, "stacky: compiler bug: Assertion `{}` in {}:{}:{}:{} failed with message: {}\n",
+	std::cerr << std::format("stacky: compiler bug: Assertion `{}` in {}:{}:{}:{} failed with message: {}\n",
 		test_str, sl.file_name(), sl.line(), sl.column(), sl.function_name(), msg);
 
 	exit(1);
@@ -135,7 +134,7 @@ inline void assert_impl(bool test, std::string_view test_str, std::source_locati
 [[noreturn]]
 inline void unreachable(std::string_view message, std::source_location sl = std::source_location::current())
 {
-	fmt::print(stderr, "stacky: compiler bug: unreachable code has been reached at {}:{}:{}:{} with message: {}\n",
+	std::cerr << std::format("stacky: compiler bug: unreachable code has been reached at {}:{}:{}:{} with message: {}\n",
 		sl.file_name(), sl.line(), sl.column(), sl.function_name(), message);
 	exit(1);
 }

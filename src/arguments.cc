@@ -1,6 +1,5 @@
 #include "arguments.hh"
 #include <iostream>
-#include <iomanip>
 
 #include <boost/program_options.hpp>
 
@@ -81,7 +80,7 @@ try {
 	if (command == "build" || (run_mode = command == "run")) {
 		po::store(po::command_line_parser(opts).options(build).run(), vm);
 	} else {
-		error_fatal(fmt::format("Unrecognized command: {}", command));
+		error_fatal(std::format("Unrecognized command: {}", command));
 	}
 
 	ensure_fatal(vm.count("source"), "no input files");
