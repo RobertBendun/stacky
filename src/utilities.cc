@@ -1,4 +1,7 @@
 #include <functional>
+#include <algorithm>
+#include <sstream>
+#include <iostream>
 
 constexpr auto count_args(auto const& ...args) noexcept -> unsigned
 {

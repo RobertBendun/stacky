@@ -5,6 +5,7 @@
 #include <ranges>
 #include <cmath>
 #include <functional>
+#include <fmt/ranges.h>
 
 struct State
 {
