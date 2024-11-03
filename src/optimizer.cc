@@ -4,6 +4,7 @@
 #include "utilities.cc"
 #include <algorithm>
 #include <vector>
+#include <utility>
 
 
 namespace optimizer
@@ -291,6 +292,7 @@ namespace optimizer
 							stack.pop_back();
 						}
 						break;
+
 					case Intrinsic_Kind::Dup:
 						{
 							if (stack.size() < 1) switch (finish_constant_folding(i)) {
@@ -300,6 +302,7 @@ namespace optimizer
 							stack.push_back(stack.back());
 						}
 						break;
+
 					case Intrinsic_Kind::Two_Dup:
 						{
 							if (stack.size() < 2) switch (finish_constant_folding(i)) {
@@ -311,21 +314,82 @@ namespace optimizer
 						}
 						break;
 
-
-					case Intrinsic_Kind::Boolean_Or:
-					case Intrinsic_Kind::Boolean_And:
-					case Intrinsic_Kind::Boolean_Negate:
-					case Intrinsic_Kind::Div_Mod:
 					case Intrinsic_Kind::Max:
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							auto const a = stack.back(); stack.pop_back();
+							auto const b = stack.back(); stack.pop_back();
+							stack.push_back(std::max(a, b));
+						}
+						break;
+
 					case Intrinsic_Kind::Min:
-					case Intrinsic_Kind::Over:
-					case Intrinsic_Kind::Rot:
-					case Intrinsic_Kind::Swap:
-					case Intrinsic_Kind::Tuck:
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							auto const a = stack.back(); stack.pop_back();
+							auto const b = stack.back(); stack.pop_back();
+							stack.push_back(std::min(a, b));
+						}
+						break;
+
+					case Intrinsic_Kind::Over: // a b -- a b a
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							stack.push_back(stack[stack.size()-2]);
+						}
+						break;
+
+
+					case Intrinsic_Kind::Rot: // a b c -- b c a
+						{
+							if (stack.size() < 3) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							auto &c = stack[stack.size()-1]; // c -> a
+							auto &b = stack[stack.size()-2]; // b -> c
+							auto &a = stack[stack.size()-3]; // a -> b
+							a = std::exchange(b, std::exchange(c, a));
+						}
+						break;
+
+					case Intrinsic_Kind::Swap: // a b -- b a
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							std::swap(stack[stack.size()-1], stack[stack.size()-2]);
+						}
+						break;
+
+					case Intrinsic_Kind::Tuck: // a b -- b a b
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							stack.push_back(stack.back());
+							std::swap(stack[stack.size()-3], stack[stack.size()-2]);
+						}
+						break;
+
 					case Intrinsic_Kind::Two_Drop:
 					case Intrinsic_Kind::Two_Over:
 					case Intrinsic_Kind::Two_Swap:
-
+					case Intrinsic_Kind::Div_Mod:
+					case Intrinsic_Kind::Boolean_Or:
+					case Intrinsic_Kind::Boolean_And:
+					case Intrinsic_Kind::Boolean_Negate:
 					case Intrinsic_Kind::Load:
 					case Intrinsic_Kind::Store:
 					case Intrinsic_Kind::Top:
