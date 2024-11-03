@@ -3,6 +3,7 @@
 
 #include "utilities.cc"
 #include <algorithm>
+#include <iterator>
 #include <vector>
 #include <utility>
 
@@ -200,20 +201,10 @@ namespace optimizer
 					}
 			);
 
-			if (stack.size() > to_optimize.size()) {
-				auto const added = stack.size() - to_optimize.size();
-				for (Operation &potential_jump : function_body) {
-					if (potential_jump.jump != Operation::Empty_Jump && potential_jump.jump >= unhandled_operation_id) {
-						potential_jump.jump += added;
-					}
-				}
-				return Break;
-			}
-
-			auto const deleted = to_optimize.size() - stack.size();
+			auto const delta = std::ssize(stack) - std::ssize(to_optimize);
 			for (Operation &potential_jump : function_body) {
 				if (potential_jump.jump != Operation::Empty_Jump && potential_jump.jump > *foldable_start) {
-					potential_jump.jump -= deleted;
+					potential_jump.jump += delta;
 				}
 			}
 
@@ -406,7 +397,7 @@ namespace optimizer
 			}
 		}
 
-		finish_constant_folding(finish_constant_folding(function_body.size()));
+		finish_constant_folding(function_body.size());
 
 		return done_something;
 	}
