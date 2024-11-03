@@ -1,6 +1,10 @@
+#include "errors.hh"
 #include "stacky.hh"
 
 #include "utilities.cc"
+#include <algorithm>
+#include <vector>
+
 
 namespace optimizer
 {
@@ -70,7 +74,6 @@ namespace optimizer
 		{
 			for (auto& op : function_body)
 				if (op.jump >= start && op.jump <= end) {
-					// (std::cout << ... << msg) << ((sizeof...(msg)==0)+" ") << op.jump << " -> " << (op.jump - amount) << '\n';
 					op.jump -= amount;
 				}
 		};
@@ -159,10 +162,196 @@ namespace optimizer
 		return done_something;
 	}
 
+	auto constant_folding([[maybe_unused]] Generation_Info &geninfo, std::vector<Operation> &function_body) -> bool
+	{
+		bool done_something = false;
+
+		std::optional<std::size_t> foldable_start = std::nullopt;
+		std::vector<std::int64_t> stack;
+
+		enum Action { Continue, Break };
+		auto const finish_constant_folding = [&](std::size_t unhandled_operation_id) -> Action {
+			if (!foldable_start.has_value() || *foldable_start + 1 == unhandled_operation_id) {
+				foldable_start = std::nullopt;
+				stack = {};
+				return Continue;
+			}
+			std::span to_optimize(function_body);
+			to_optimize = to_optimize.subspan(*foldable_start, unhandled_operation_id - *foldable_start);
+
+			auto const stack_the_same_as_operations = std::ranges::equal(to_optimize, stack,
+					[](Operation const& op, std::int64_t value) { return op.kind == Operation::Kind::Push_Int && int64_t(op.ival) == value; });
+
+			if (stack_the_same_as_operations) {
+				foldable_start = std::nullopt;
+				stack = {};
+				return Continue;
+			}
+
+			done_something = true;
+			function_body.erase(function_body.begin() + *foldable_start, function_body.begin() + unhandled_operation_id);
+			std::ranges::transform(stack, std::inserter(function_body, function_body.begin() + *foldable_start),
+					[](std::int64_t value) {
+						return Operation {
+							.kind = Operation::Kind::Push_Int,
+							.ival = std::uint64_t(value),
+						};
+					}
+			);
+
+			if (stack.size() > to_optimize.size()) {
+				auto const added = stack.size() - to_optimize.size();
+				for (Operation &potential_jump : function_body) {
+					if (potential_jump.jump != Operation::Empty_Jump && potential_jump.jump >= unhandled_operation_id) {
+						potential_jump.jump += added;
+					}
+				}
+				return Break;
+			}
+
+			auto const deleted = to_optimize.size() - stack.size();
+			for (Operation &potential_jump : function_body) {
+				if (potential_jump.jump != Operation::Empty_Jump && potential_jump.jump > *foldable_start) {
+					potential_jump.jump -= deleted;
+				}
+			}
+
+			return Break;
+		};
+
+		for (auto i = 0u; i < function_body.size(); ++i) {
+			auto const& op = function_body[i];
+
+			if (!foldable_start.has_value()) {
+				if (op.kind == Operation::Kind::Push_Int) {
+					foldable_start = i;
+				} else {
+					continue;
+				}
+			}
+
+			switch (op.kind) {
+			case Operation::Kind::Push_Symbol:
+			case Operation::Kind::Call_Symbol:
+			case Operation::Kind::Cast:
+			case Operation::Kind::End:
+			case Operation::Kind::If:
+			case Operation::Kind::Else:
+			case Operation::Kind::While:
+			case Operation::Kind::Do:
+			case Operation::Kind::Return:
+				switch (finish_constant_folding(i)) {
+				case Continue: continue;
+				case Break: return done_something;
+				}
+				break;
+
+			case Operation::Kind::Push_Int:
+				stack.push_back(op.ival);
+				continue;
+
+			case Operation::Kind::Intrinsic:
+				switch (op.intrinsic) {
+#define Math(Name, Op) \
+					case Name: \
+						{ \
+							if (stack.size() < 2) switch (finish_constant_folding(i)) { \
+								case Continue: continue; \
+								case Break: return done_something; \
+							} \
+							auto const a = stack.back(); stack.pop_back(); \
+							auto const b = stack.back(); stack.pop_back(); \
+							stack.push_back(b Op a); \
+						} \
+						break;
+					Math(Intrinsic_Kind::Add, +)
+					Math(Intrinsic_Kind::Subtract, -)
+					Math(Intrinsic_Kind::Equal, ==)
+					Math(Intrinsic_Kind::Bitwise_And, &)
+					Math(Intrinsic_Kind::Bitwise_Or, |)
+					Math(Intrinsic_Kind::Bitwise_Xor, ^)
+					Math(Intrinsic_Kind::Div, /)
+					Math(Intrinsic_Kind::Greater, >)
+					Math(Intrinsic_Kind::Greater_Eq, >=)
+					Math(Intrinsic_Kind::Left_Shift, <<)
+					Math(Intrinsic_Kind::Less, <)
+					Math(Intrinsic_Kind::Less_Eq, <=)
+					Math(Intrinsic_Kind::Mod, %)
+					Math(Intrinsic_Kind::Mul, *)
+					Math(Intrinsic_Kind::Not_Equal, !=)
+					Math(Intrinsic_Kind::Right_Shift, >>)
+#undef Math
+
+					case Intrinsic_Kind::Drop:
+						{
+							if (stack.size() < 1) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							stack.pop_back();
+						}
+						break;
+					case Intrinsic_Kind::Dup:
+						{
+							if (stack.size() < 1) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							stack.push_back(stack.back());
+						}
+						break;
+					case Intrinsic_Kind::Two_Dup:
+						{
+							if (stack.size() < 2) switch (finish_constant_folding(i)) {
+								case Continue: continue;
+								case Break: return done_something;
+							}
+							stack.push_back(stack[stack.size()-2]);
+							stack.push_back(stack[stack.size()-2]);
+						}
+						break;
+
+
+					case Intrinsic_Kind::Boolean_Or:
+					case Intrinsic_Kind::Boolean_And:
+					case Intrinsic_Kind::Boolean_Negate:
+					case Intrinsic_Kind::Div_Mod:
+					case Intrinsic_Kind::Max:
+					case Intrinsic_Kind::Min:
+					case Intrinsic_Kind::Over:
+					case Intrinsic_Kind::Rot:
+					case Intrinsic_Kind::Swap:
+					case Intrinsic_Kind::Tuck:
+					case Intrinsic_Kind::Two_Drop:
+					case Intrinsic_Kind::Two_Over:
+					case Intrinsic_Kind::Two_Swap:
+
+					case Intrinsic_Kind::Load:
+					case Intrinsic_Kind::Store:
+					case Intrinsic_Kind::Top:
+					case Intrinsic_Kind::Call:
+					case Intrinsic_Kind::Random32:
+					case Intrinsic_Kind::Random64:
+					case Intrinsic_Kind::Syscall:
+						switch (finish_constant_folding(i)) {
+							case Continue: continue;
+							case Break: return done_something;
+						}
+				}
+				continue;
+			}
+		}
+
+		finish_constant_folding(finish_constant_folding(function_body.size()));
+
+		return done_something;
+	}
+
 	void optimize(Generation_Info &geninfo)
 	{
 		while (remove_unused_words_and_strings(geninfo)
-			|| for_all_functions(geninfo, optimize_comptime_known_conditions))
+			|| for_all_functions(geninfo, optimize_comptime_known_conditions)
+			|| for_all_functions(geninfo, constant_folding))
 		{
 		}
 	}
