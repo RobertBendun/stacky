@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <boost/program_options.hpp>
+#include <iterator>
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
@@ -13,13 +14,30 @@ Arguments compiler_arguments;
 [[noreturn]]
 void help(po::options_description const& desc)
 {
-	std::cout << "usage: stacky <build|run> [options] <sources...>\n";
+	std::cout << "usage: stacky build [options] <sources...>\n";
+	std::cout << "       stacky run   [options] <sources...> [-- <args...>]\n";
 	std::cout << desc << '\n';
 	exit(1);
 }
 
 void Arguments::parse(int argc, char **argv)
 try {
+	std::vector<std::string> cmdline;
+
+	{
+		bool seen_separator = false;
+
+		for (auto arg : std::span(argv+1, argv+argc-1)) {
+			if (seen_separator) {
+				arguments.push_back(arg);
+			} else if (arg == std::string_view("--")) {
+				seen_separator = true;
+			} else {
+				cmdline.push_back(arg);
+			}
+		}
+	}
+
 	po::options_description common("Common options");
 	common.add_options()
 		("help,h", "produce help message")
@@ -59,7 +77,8 @@ try {
 	po::options_description visible;
 	visible.add(common).add(build).add(config).add(debug);
 
-	po::parsed_options parsed = po::command_line_parser(argc, argv)
+
+	po::parsed_options parsed = po::command_line_parser(cmdline)
 		.options(cmdline_options)
 		.positional(pos)
 		.allow_unregistered()
@@ -83,8 +102,8 @@ try {
 		error_fatal(std::format("Unrecognized command: {}", command));
 	}
 
-	ensure_fatal(vm.count("source"), "no input files");
 	source_files = vm["source"].as<std::vector<std::string>>();
+	ensure_fatal(source_files.size(), "no input files");
 
 	if (vm.count("output")) {
 		executable = vm["output"].as<std::string>();

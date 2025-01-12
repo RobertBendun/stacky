@@ -8,6 +8,7 @@ extern struct Arguments
 {
 	std::vector<std::filesystem::path>   include_search_paths;
 	std::vector<std::string>             source_files;
+	std::vector<std::string>             arguments;
 	std::filesystem::path                compiler;
 	std::filesystem::path                executable;
 	std::filesystem::path                assembly;

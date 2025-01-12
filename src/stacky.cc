@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <charconv>
@@ -293,8 +294,13 @@ auto main(int argc, char **argv) -> int
 	}
 
 	if (compiler_arguments.run_mode) {
-		// TODO pass arguments from compiler
-		auto const path = fs::absolute(compiler_arguments.executable);
-		execl(path.c_str(), compiler_arguments.executable.c_str(), (char*)NULL);
+		auto path = fs::absolute(compiler_arguments.executable).string();
+
+		auto argv = new char*[2 + compiler_arguments.arguments.size()];
+		argv[0] = path.data();
+		std::transform(compiler_arguments.arguments.begin(), compiler_arguments.arguments.end(), argv+1, [](auto &s) { return s.data(); });
+		argv[compiler_arguments.arguments.size()+1] = nullptr;
+
+		execv(path.c_str(), argv);
 	}
 }
