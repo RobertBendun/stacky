@@ -14,6 +14,10 @@ end
 	load32 swap load32 swap
 end
 
+begin-end-32 fun u64 ptr -- ptr ptr is
+	dup rot 4 * + swap
+end
+
 print-array32 fun u64 ptr -- is
 	begin-end-32
 	"[ " puts

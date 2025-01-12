@@ -27,7 +27,7 @@ try {
 	{
 		bool seen_separator = false;
 
-		for (auto arg : std::span(argv+1, argv+argc-1)) {
+		for (auto arg : std::span(argv+1, argv+argc)) {
 			if (seen_separator) {
 				arguments.push_back(arg);
 			} else if (arg == std::string_view("--")) {

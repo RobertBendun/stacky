@@ -1,10 +1,6 @@
 "algorithm" import
 "io" import
 
-begin-end-32 fun u64 ptr -- ptr ptr is
-	dup rot 4 * + swap
-end
-
 # max min n p
 fill-with-random fun u64 u64 u64 ptr -- is
 	begin-end-32

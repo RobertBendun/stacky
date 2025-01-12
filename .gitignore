@@ -41,6 +41,7 @@ examples/stdio
 examples/switch
 examples/truth-machine
 examples/args
+examples/counter
 tests/functions
 tests/integers
 tests/memory

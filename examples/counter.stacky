@@ -1,0 +1,19 @@
+"io" import
+"algorithm" import
+
+counter fun u64 -- is
+	0
+	while 2dup = ! do
+		dup putu nl # yield
+		1 +
+	end
+	2drop
+end
+
+argc 2 != if
+	"usage: counter <count>" puts
+	2 exit
+end
+
+argv 8 + load64 ptr parse(u64) counter
+
