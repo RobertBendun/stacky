@@ -40,6 +40,7 @@ examples/sorting
 examples/stdio
 examples/switch
 examples/truth-machine
+examples/args
 tests/functions
 tests/integers
 tests/memory

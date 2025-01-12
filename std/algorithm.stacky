@@ -23,3 +23,12 @@ print-array32 fun u64 ptr -- is
 	end 2drop
 	"]" puts nl
 end
+
+parse(u64) fun ptr -- u64 is
+	0 swap
+
+	while dup load8 dup '0' >= swap '9' <= and do # result ptr
+		dup load8 '0' - rot 10 * + swap 1 +
+	end
+	drop
+end
