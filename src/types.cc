@@ -540,6 +540,11 @@ void typecheck(
 					Typecheck_Stack_Effect(s, _1 >> _2 >> _3 >= _2 >> _3 >> _1);
 					break;
 
+				case Intrinsic_Kind::Argv:
+					Typecheck_Stack_Effect(s, Empty >= Ptr);
+					break;
+
+				case Intrinsic_Kind::Argc:
 				case Intrinsic_Kind::Random32:
 				case Intrinsic_Kind::Random64:
 					Typecheck_Stack_Effect(s, Empty >= Int);

@@ -1,11 +1,7 @@
 "io" import
 
-# Operating system provides this stack shape:
-# argv[argc-1] ... argv[0] argc
-
-0
-while 2dup = ! do
+0 while dup argc = ! do
 	"[" puts dup putu "] = " puts
-	rot puts nl
+	dup 8 * argv + load64 puts nl
 	1 +
 end

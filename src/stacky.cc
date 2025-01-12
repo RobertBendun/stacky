@@ -96,6 +96,8 @@ void register_intrinsics(Words &words)
 	register_intrinsic(words, "store32"sv,   Intrinsic_Kind::Store);
 	register_intrinsic(words, "store64"sv,   Intrinsic_Kind::Store);
 	register_intrinsic(words, "store8"sv,    Intrinsic_Kind::Store);
+	register_intrinsic(words, "argc",        Intrinsic_Kind::Argc);
+	register_intrinsic(words, "argv",        Intrinsic_Kind::Argv);
 }
 
 auto search_include_path(fs::path includer_path, fs::path include_path) -> std::optional<fs::path>

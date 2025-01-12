@@ -43,6 +43,8 @@ namespace linux::x86_64 {
 		asm_file << "segment .bss\n";
 		asm_file << "	_stacky_callstack: resq 1024\n";
 		asm_file << "	_stacky_callptr:   resq 1\n";
+		asm_file << " _stacky_argv:      resq 1\n";
+		asm_file << " _stacky_argc:      resq 1\n";
 		for (auto const& [key, value] : geninfo.words) {
 			switch (value.kind) {
 			case Word::Kind::Array: label(value) << "resb " << value.byte_size << '\n'; break;
@@ -78,6 +80,18 @@ namespace linux::x86_64 {
 
 		assert(op.kind == Operation::Kind::Intrinsic);
 		switch (op.intrinsic) {
+		case Intrinsic_Kind::Argc:
+			asm_file << " ;; argc\n";
+			asm_file << " mov rax, [_stacky_argc]\n";
+			asm_file << " push rax\n";
+			break;
+
+		case Intrinsic_Kind::Argv:
+			asm_file << " ;; argv\n";
+			asm_file << " mov rax, [_stacky_argv]\n";
+			asm_file << " push rax\n";
+			break;
+
 		case Intrinsic_Kind::Random32:
 			asm_file << "	;; random32\n";
 			asm_file << "	xor rax, rax\n";
@@ -351,6 +365,12 @@ namespace linux::x86_64 {
 
 		asm_file << "global _start\n";
 		asm_file << "_start:\n";
+
+		asm_file << "  pop rax\n";
+		asm_file << "  mov [_stacky_argc], rax\n";
+		asm_file << "  mov [_stacky_argv], rsp\n";
+
+
 		generate_instructions(geninfo, geninfo.main, asm_file, Label_Prefix);
 
 		asm_file << R"asm(

@@ -374,6 +374,8 @@ namespace optimizer
 						}
 						break;
 
+					case Intrinsic_Kind::Argc:
+					case Intrinsic_Kind::Argv:
 					case Intrinsic_Kind::Two_Drop:
 					case Intrinsic_Kind::Two_Over:
 					case Intrinsic_Kind::Two_Swap:

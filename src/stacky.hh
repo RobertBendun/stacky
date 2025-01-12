@@ -95,6 +95,8 @@ enum class Intrinsic_Kind
 	Call,
 
 	// --- STDLIB, OS ---
+	Argv,
+	Argc,
 	Syscall,
 
 	Last = Syscall,
