@@ -1,35 +1,48 @@
+# Implementation of simple postfix calculator using a few tricks of a language
+# 1. It utilizes it's own stack as a storage space for provided values by the user
+# 2. It creates custom switch function that dynamically takes provided function pointers
+#    and values from stack and resolves to chosen function pointer based on values matching
+#
+# This program shows why type checking of such language is impossible and to introduce mandatory
+# type system would be to restrict this language (which may be a good thing)
+
 "io" import
+"algorithm" import
 
 switch fun dyn
 	while dup 0 > do
-		swap 2swap rot swap over =
+		swap 2swap rot swap over strcmp 0 =
 		if
-			drop swap
-			while dup 1 > do
-				2swap 2drop
+			while 2swap dup 1 > do
 				1 -
-			end drop
-			swap drop
+				swap drop
+				2swap swap drop rot
+			end
+			2drop swap
 			call return
 		else
 			swap drop
 		end
 		swap
 		1 -
-	end 2drop
+	end
+	drop swap
 	call
 end
 
-20 30 '+'
+# Store program counter away since we use Stacky stack as storage
+pc 1 []u64
+pc 1 store64
 
-&fun u64 u64 -- u64 is
-	2drop
-	"Matching operator not found" puts
-	1 exit 0
-end swap
-&fun u64 u64 -- u64 is +   end '+' rot
-&fun u64 u64 -- u64 is -   end '-' rot
-&fun u64 u64 -- u64 is *   end '*' rot
-&fun u64 u64 -- u64 is div end '/' rot
-4
-switch .
+while pc load64 argc < do
+	argv pc load64 8 * + load64
+
+	&fun is parse(u64) end     swap
+	&fun is drop +     end "+" rot
+	&fun is drop -     end "-" rot
+	&fun is drop *     end "*" rot
+	&fun is drop div   end "/" rot
+	&fun is drop .     end "." rot
+	5 switch
+	pc inc64
+end

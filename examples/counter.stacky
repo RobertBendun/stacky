@@ -4,7 +4,7 @@
 counter fun u64 -- is
 	0
 	while 2dup = ! do
-		dup putu nl # yield
+		dup putu nl
 		1 +
 	end
 	2drop
@@ -16,4 +16,3 @@ argc 2 != if
 end
 
 argv 8 + load64 ptr parse(u64) counter
-

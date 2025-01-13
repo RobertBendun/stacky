@@ -36,3 +36,15 @@ parse(u64) fun ptr -- u64 is
 	end
 	drop
 end
+
+strcmp fun ptr ptr -- u64 is
+	while 2dup load8 swap load8 = over load8 0 = ! and do
+		1 + swap 1 + swap
+	end
+	swap load8 swap load8 -
+end
+
+inc8  fun ptr -- is dup load8  1 + store8  end
+inc16 fun ptr -- is dup load16 1 + store16 end
+inc32 fun ptr -- is dup load32 1 + store32 end
+inc64 fun ptr -- is dup load64 1 + store64 end

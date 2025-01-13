@@ -58,3 +58,12 @@ aputu fun u64 u64 -- is
 end
 
 . fun u64 -- is putu nl end
+
+debug-print-stack fun u64 ptr -- is
+	"stack " puts puts " [ " puts
+	0 while 2dup > do
+		top over 2 + 8 * + load64 putu " " puts
+		1 +
+	end 2drop
+	"]\n" puts
+end
